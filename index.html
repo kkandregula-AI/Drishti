@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#08080f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="DRISHTI — ADAS Anatomy Lab. How a car learns to see. Interactive sensor simulation, SAE levels, and the India reality check.">
+<title>DRISHTI · ADAS Anatomy Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#08080f; --ink-2:#0e0e1a; --ink-3:#15152a;
+  --line:rgba(217,70,239,.18); --line-cyan:rgba(34,211,238,.18);
+  --fuchsia:#d946ef; --fuchsia-soft:#e879f9;
+  --cyan:#22d3ee; --cyan-soft:#67e8f9;
+  --amber:#fbbf24; --green:#4ade80; --red:#f87171;
+  --text:#e8e6f2; --muted:#8b89a3; --faint:#55536e;
+  --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+::selection{background:rgba(217,70,239,.35)}
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+.eyebrow{font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;color:var(--cyan);margin-bottom:14px}
+.eyebrow.f{color:var(--fuchsia-soft)}
+h1,h2,h3{font-family:'Cinzel',serif;font-weight:700;line-height:1.15}
+h2{font-size:clamp(1.5rem,4vw,2.2rem);margin-bottom:10px}
+.lede{color:var(--muted);max-width:620px;font-size:1.02rem}
+section{padding:72px 0;border-top:1px solid rgba(255,255,255,.05)}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+/* ── Hero ── */
+.hero{min-height:88vh;display:flex;flex-direction:column;justify-content:center;position:relative;padding:90px 0 60px;border-top:none}
+.hero-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.hero-bg::before{content:"";position:absolute;width:640px;height:640px;border-radius:50%;background:radial-gradient(circle,rgba(217,70,239,.14),transparent 65%);top:-220px;right:-160px}
+.hero-bg::after{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.10),transparent 65%);bottom:-180px;left:-140px}
+.hero-title{font-size:clamp(3rem,11vw,6.2rem);font-weight:900;background:linear-gradient(100deg,var(--fuchsia-soft),var(--cyan-soft));-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:.02em}
+.hero-devanagari{font-size:clamp(1rem,3vw,1.4rem);color:var(--faint);margin-top:6px;font-family:'DM Sans',sans-serif}
+.hero-sub{font-size:clamp(1.05rem,2.6vw,1.4rem);color:var(--muted);margin-top:22px;max-width:560px}
+.hero-sub b{color:var(--text);font-weight:500}
+.hero-cta{display:inline-flex;gap:12px;margin-top:34px;flex-wrap:wrap}
+.btn{display:inline-block;padding:13px 26px;border-radius:999px;font-family:'DM Mono',monospace;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;text-decoration:none;cursor:pointer;border:1px solid transparent;transition:transform .2s,box-shadow .2s}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(95deg,var(--fuchsia),#a21caf);color:#fff;box-shadow:0 6px 26px rgba(217,70,239,.35)}
+.btn-ghost{border-color:var(--line-cyan);color:var(--cyan-soft)}
+.ep-tag{font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.3em;color:var(--faint);text-transform:uppercase;margin-bottom:18px}
+
+/* ── Sensing Stage ── */
+.stage-shell{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-top:34px}
+.stage-canvas-wrap{position:relative;background:#0b0b14}
+#simCanvas{display:block;width:100%;height:auto;touch-action:manipulation}
+.verdict{position:absolute;top:12px;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.18em;padding:7px 16px;border-radius:999px;border:1px solid;white-space:nowrap;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.verdict.ok{color:var(--green);border-color:rgba(74,222,128,.4);background:rgba(74,222,128,.08)}
+.verdict.warn{color:var(--amber);border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08)}
+.verdict.danger{color:var(--red);border-color:rgba(248,113,113,.5);background:rgba(248,113,113,.1);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.55}}
+.stage-controls{padding:18px;display:grid;gap:16px;border-top:1px solid rgba(255,255,255,.05)}
+.ctrl-group-label{font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.24em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.08em;padding:9px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s}
+.chip.on{color:#fff;border-color:transparent}
+.chip[data-sensor="camera"].on{background:rgba(34,211,238,.18);color:var(--cyan-soft);box-shadow:inset 0 0 0 1px var(--cyan)}
+.chip[data-sensor="radar"].on{background:rgba(217,70,239,.18);color:var(--fuchsia-soft);box-shadow:inset 0 0 0 1px var(--fuchsia)}
+.chip[data-sensor="ultrasonic"].on{background:rgba(251,191,36,.15);color:var(--amber);box-shadow:inset 0 0 0 1px var(--amber)}
+.chip[data-sensor="lidar"].on{background:rgba(74,222,128,.14);color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}
+.chip[data-cond].on,.chip[data-hazard].on{background:rgba(255,255,255,.08);color:var(--text);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+.sensor-readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.readout-card{background:var(--ink-3);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px 14px}
+.readout-card .s-name{font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:4px}
+.readout-card .s-status{font-size:.82rem;color:var(--muted)}
+.readout-card.detect .s-status{color:var(--green)}
+.readout-card.uncertain .s-status{color:var(--amber)}
+.readout-card.miss .s-status{color:var(--red)}
+.readout-card.off{opacity:.38}
+.sim-note{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
+.sim-note .real{color:var(--green)}.sim-note .simu{color:var(--amber)}
+
+/* ── Pipeline ── */
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:36px}
+@media(max-width:720px){.pipeline{grid-template-columns:repeat(2,1fr)}}
+.pipe-stage{background:var(--ink-2);border:1px solid rgba(255,255,255,.07);border-radius:var(--radius);padding:22px 18px;cursor:pointer;transition:border-color .25s,transform .25s;position:relative}
+.pipe-stage:hover{transform:translateY(-3px)}
+.pipe-stage.active{border-color:var(--fuchsia);box-shadow:0 0 30px rgba(217,70,239,.15)}
+.pipe-num{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.2em;color:var(--faint)}
+.pipe-stage h3{font-size:1.05rem;margin:8px 0 6px;color:var(--text)}
+.pipe-stage p{font-size:.82rem;color:var(--muted);line-height:1.5}
+.pipe-detail{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--radius);padding:26px;margin-top:14px;display:none}
+.pipe-detail.show{display:block;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.pipe-detail h3{color:var(--fuchsia-soft);margin-bottom:10px}
+.pipe-detail p{color:var(--muted);font-size:.95rem;max-width:720px}
+.pipe-detail .tech{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--cyan-soft);margin-top:14px;letter-spacing:.06em;line-height:1.9}
+
+/* ── SAE Levels ── */
+.sae-selector{display:flex;gap:8px;margin-top:34px;flex-wrap:wrap}
+.sae-btn{flex:1;min-width:52px;font-family:'Cinzel',serif;font-weight:700;font-size:1.2rem;padding:14px 0;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:var(--ink-2);color:var(--muted);cursor:pointer;transition:all .25s}
+.sae-btn.active{background:linear-gradient(135deg,rgba(217,70,239,.25),rgba(34,211,238,.18));color:#fff;border-color:var(--fuchsia)}
+.sae-panel{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--radius);padding:28px;margin-top:16px}
+.sae-panel h3{color:var(--cyan-soft);font-size:1.25rem}
+.sae-tagline{font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:4px 0 16px}
+.sae-panel .sae-desc{color:var(--muted);font-size:.95rem;max-width:700px;margin-bottom:22px}
+.duty-row{display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:center;margin-bottom:12px}
+@media(max-width:520px){.duty-row{grid-template-columns:100px 1fr}}
+.duty-label{font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.duty-bar{height:22px;border-radius:6px;background:var(--ink-3);overflow:hidden;display:flex}
+.duty-fill{height:100%;background:linear-gradient(90deg,var(--fuchsia),var(--cyan));transition:width .6s cubic-bezier(.22,1,.36,1)}
+.duty-legend{display:flex;gap:18px;margin-top:16px;font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.duty-legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.sae-india{margin-top:18px;padding:14px 16px;border-left:2px solid var(--amber);background:rgba(251,191,36,.05);border-radius:0 10px 10px 0;font-size:.86rem;color:var(--muted)}
+.sae-india b{color:var(--amber)}
+
+/* ── India Reality Check ── */
+.reality-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:36px}
+.reality-card{background:var(--ink-2);border:1px solid rgba(255,255,255,.07);border-radius:var(--radius);padding:24px;transition:border-color .3s,transform .3s}
+.reality-card:hover{border-color:var(--line);transform:translateY(-3px)}
+.reality-emoji{font-size:1.8rem}
+.reality-card h3{font-size:1.02rem;margin:12px 0 10px;color:var(--text)}
+.rc-block{margin-top:10px}
+.rc-label{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;margin-bottom:3px}
+.rc-label.breaks{color:var(--red)}
+.rc-label.needs{color:var(--green)}
+.rc-block p{font-size:.83rem;color:var(--muted);line-height:1.55}
+
+/* ── Tutor ── */
+.tutor-shell{background:var(--ink-2);border:1px solid var(--line-cyan);border-radius:var(--radius);overflow:hidden;margin-top:34px}
+.tutor-head{padding:18px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.tutor-head .t-title{font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan-soft)}
+.key-btn{font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.12em;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--muted);cursor:pointer}
+.key-row{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:none;gap:10px}
+.key-row.show{display:flex}
+.key-row input{flex:1;background:var(--ink-3);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none}
+.key-row input:focus{border-color:var(--cyan)}
+.chat-log{max-height:380px;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.msg{max-width:88%;padding:12px 16px;border-radius:14px;font-size:.9rem;line-height:1.55;white-space:pre-wrap;word-wrap:break-word}
+.msg.user{align-self:flex-end;background:rgba(217,70,239,.14);border:1px solid rgba(217,70,239,.25)}
+.msg.ai{align-self:flex-start;background:var(--ink-3);border:1px solid rgba(255,255,255,.07);color:#d5d3e6}
+.msg.sys{align-self:center;font-family:'DM Mono',monospace;font-size:.68rem;color:var(--faint);background:none;border:none;text-align:center}
+.suggest-row{display:flex;gap:8px;padding:0 22px 14px;flex-wrap:wrap}
+.suggest{font-size:.72rem;font-family:'DM Mono',monospace;padding:7px 13px;border-radius:999px;border:1px solid rgba(34,211,238,.25);background:transparent;color:var(--cyan-soft);cursor:pointer;letter-spacing:.04em}
+.chat-input-row{display:flex;gap:10px;padding:14px 22px;border-top:1px solid rgba(255,255,255,.06)}
+.chat-input-row input{flex:1;background:var(--ink-3);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:12px 18px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none}
+.chat-input-row input:focus{border-color:var(--fuchsia)}
+.send-btn{width:46px;height:46px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--fuchsia),#a21caf);color:#fff;font-size:1.05rem;cursor:pointer;flex-shrink:0}
+.send-btn:disabled{opacity:.4}
+
+/* ── Footer ── */
+footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.05);text-align:center}
+.attribution{font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.14em;color:var(--faint)}
+.attribution b{color:var(--fuchsia-soft);font-weight:500}
+.foot-series{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:var(--faint);margin-top:10px}
+.install-hint{font-size:.78rem;color:var(--faint);margin-top:18px}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="wrap">
+    <div class="ep-tag">AI Education Series · Episode 10 · ADAS</div>
+    <h1 class="hero-title">DRISHTI</h1>
+    <div class="hero-devanagari">दृष्टि — vision · the act of seeing</div>
+    <p class="hero-sub">How does a car <b>learn to see</b>? Toggle real sensor physics, break Western assumptions on an Indian highway, and walk the full autonomy stack — <b>Sense → Perceive → Plan → Act</b>.</p>
+    <div class="hero-cta">
+      <a href="#stage" class="btn btn-primary">Enter the Lab</a>
+      <a href="#tutor" class="btn btn-ghost">Ask the AI Tutor</a>
+    </div>
+  </div>
+</div>
+
+<section id="stage">
+  <div class="wrap">
+    <div class="eyebrow reveal">01 · The Sensing Stage</div>
+    <h2 class="reveal">Four eyes, four blind spots</h2>
+    <p class="lede reveal">Every ADAS sensor sees the world differently — and fails differently. Toggle them, spawn hazards, change the weather. Watch the fusion verdict decide what the car actually knows.</p>
+    <div class="stage-shell reveal">
+      <div class="stage-canvas-wrap">
+        <canvas id="simCanvas"></canvas>
+        <div class="verdict ok" id="verdict">ROAD CLEAR</div>
+      </div>
+      <div class="stage-controls">
+        <div>
+          <div class="ctrl-group-label">Sensors</div>
+          <div class="chip-row">
+            <button class="chip on" data-sensor="camera">📷 Camera</button>
+            <button class="chip on" data-sensor="radar">📡 Radar</button>
+            <button class="chip" data-sensor="ultrasonic">〰 Ultrasonic</button>
+            <button class="chip" data-sensor="lidar">🌀 LiDAR</button>
+          </div>
+        </div>
+        <div>
+          <div class="ctrl-group-label">Conditions</div>
+          <div class="chip-row">
+            <button class="chip on" data-cond="clear">☀️ Clear Day</button>
+            <button class="chip" data-cond="monsoon">🌧 Monsoon</button>
+            <button class="chip" data-cond="night">🌙 Night</button>
+          </div>
+        </div>
+        <div>
+          <div class="ctrl-group-label">Spawn Hazard</div>
+          <div class="chip-row">
+            <button class="chip" data-hazard="cow">🐄 Cow</button>
+            <button class="chip" data-hazard="pedestrian">🚶 Pedestrian</button>
+            <button class="chip" data-hazard="rickshaw">🛺 Auto-rickshaw</button>
+            <button class="chip" data-hazard="truck">🚛 Truck</button>
+            <button class="chip" data-hazard="pothole">🕳 Pothole</button>
+          </div>
+        </div>
+        <div>
+          <div class="ctrl-group-label">Sensor Readout</div>
+          <div class="sensor-readout" id="readout"></div>
+        </div>
+        <div class="sim-note"><span class="simu">● Simulated</span> — physics-inspired teaching model, not a certified ADAS stack · sensor behaviour curves are <span class="real">directionally real</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <div class="eyebrow f reveal">02 · The Autonomy Stack</div>
+    <h2 class="reveal">Sense → Perceive → Plan → Act</h2>
+    <p class="lede reveal">Every driver-assist decision — from a beep to an emergency brake — flows through the same four-stage loop, dozens of times per second. Tap a stage.</p>
+    <div class="pipeline reveal">
+      <div class="pipe-stage active" data-stage="0"><div class="pipe-num">STAGE 01</div><h3>Sense</h3><p>Raw photons, radio echoes, laser returns, ultrasonic pings.</p></div>
+      <div class="pipe-stage" data-stage="1"><div class="pipe-num">STAGE 02</div><h3>Perceive</h3><p>Neural networks turn raw signals into objects, lanes, and free space.</p></div>
+      <div class="pipe-stage" data-stage="2"><div class="pipe-num">STAGE 03</div><h3>Plan</h3><p>Predict what everyone will do next; choose a safe trajectory.</p></div>
+      <div class="pipe-stage" data-stage="3"><div class="pipe-num">STAGE 04</div><h3>Act</h3><p>Actuators steer, brake, and accelerate — with a human fallback.</p></div>
+    </div>
+    <div class="pipe-detail show" id="pipeDetail"></div>
+  </div>
+</section>
+
+<section id="sae">
+  <div class="wrap">
+    <div class="eyebrow reveal">03 · SAE Levels</div>
+    <h2 class="reveal">The ladder from 0 to 5</h2>
+    <p class="lede reveal">"Self-driving" is not one thing — it's a six-rung ladder of who does what. Slide across the levels and watch responsibility shift from human to machine.</p>
+    <div class="sae-selector reveal">
+      <button class="sae-btn" data-level="0">0</button>
+      <button class="sae-btn" data-level="1">1</button>
+      <button class="sae-btn active" data-level="2">2</button>
+      <button class="sae-btn" data-level="3">3</button>
+      <button class="sae-btn" data-level="4">4</button>
+      <button class="sae-btn" data-level="5">5</button>
+    </div>
+    <div class="sae-panel reveal" id="saePanel"></div>
+  </div>
+</section>
+
+<section id="reality">
+  <div class="wrap">
+    <div class="eyebrow f reveal">04 · The India Reality Check</div>
+    <h2 class="reveal">Where Western ADAS assumptions break</h2>
+    <p class="lede reveal">ADAS stacks are trained on structured roads with painted lanes and predictable actors. Bharat's roads are a different dataset entirely.</p>
+    <div class="reality-grid reveal" id="realityGrid"></div>
+  </div>
+</section>
+
+<section id="tutor">
+  <div class="wrap">
+    <div class="eyebrow reveal">05 · AI Tutor</div>
+    <h2 class="reveal">Ask DRISHTI anything</h2>
+    <p class="lede reveal">A Claude Haiku tutor that knows your current lab state — which sensors you've enabled, the weather, the hazard on the road. Bring your own Anthropic API key; it never leaves this device.</p>
+    <div class="tutor-shell reveal">
+      <div class="tutor-head">
+        <span class="t-title">◈ DRISHTI Tutor · Claude Haiku · BYOK</span>
+        <button class="key-btn" id="keyToggle">API Key</button>
+      </div>
+      <div class="key-row" id="keyRow">
+        <input type="password" id="keyInput" placeholder="sk-ant-..." autocomplete="off">
+        <button class="key-btn" id="keySave">Save</button>
+      </div>
+      <div class="chat-log" id="chatLog">
+        <div class="msg sys">Key stored only in this browser's localStorage · direct calls to api.anthropic.com</div>
+        <div class="msg ai">Namaste! I'm the DRISHTI tutor. I can see your Sensing Stage state in real time. Try disabling the camera in monsoon and ask me why the cow disappeared.</div>
+      </div>
+      <div class="suggest-row">
+        <button class="suggest">Why does radar miss cows?</button>
+        <button class="suggest">Camera vs LiDAR — who wins?</button>
+        <button class="suggest">What SAE level are Indian cars today?</button>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Ask about sensors, fusion, SAE levels…" enterkeyhint="send">
+        <button class="send-btn" id="sendBtn">➤</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="attribution">Designed & Architected by <b>Krishnamurthy Kandregula</b> · Made by Claude</div>
+    <div class="foot-series">Krishnamurthy Kandregula Innovation Lab · AI Education Series</div>
+    <p class="install-hint">Add to Home Screen for the full offline lab experience.</p>
+  </div>
+</footer>
+
+<script>
+/* ═══════════ PWA BOOT — canvas icon · manifest · blob SW (Tranzit pattern) ═══════════ */
+(function(){
+  try{
+    const ic=document.createElement('canvas');ic.width=512;ic.height=512;
+    const g=ic.getContext('2d');
+    const bg=g.createLinearGradient(0,0,512,512);bg.addColorStop(0,'#15152a');bg.addColorStop(1,'#08080f');
+    g.fillStyle=bg;g.fillRect(0,0,512,512);
+    // sensor cone motif
+    g.beginPath();g.moveTo(256,392);g.lineTo(120,120);g.arc(256,392,304,Math.PI*1.28,Math.PI*1.72);g.closePath();
+    const cone=g.createLinearGradient(256,392,256,90);cone.addColorStop(0,'rgba(217,70,239,.85)');cone.addColorStop(1,'rgba(34,211,238,.15)');
+    g.fillStyle=cone;g.fill();
+    // ego car dot
+    g.fillStyle='#22d3ee';g.beginPath();g.arc(256,392,34,0,Math.PI*2);g.fill();
+    g.fillStyle='#08080f';g.beginPath();g.arc(256,392,16,0,Math.PI*2);g.fill();
+    // letterform
+    g.fillStyle='#fff';g.font='900 118px Georgia, serif';g.textAlign='center';g.fillText('D',256,208);
+    const iconURL=ic.toDataURL('image/png');
+    const manifest={name:'DRISHTI · ADAS Anatomy Lab',short_name:'DRISHTI',start_url:'.',display:'standalone',background_color:'#08080f',theme_color:'#08080f',icons:[{src:iconURL,sizes:'512x512',type:'image/png'},{src:iconURL,sizes:'192x192',type:'image/png'}]};
+    const mURL=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/json'}));
+    const l=document.createElement('link');l.rel='manifest';l.href=mURL;document.head.appendChild(l);
+    const a=document.createElement('link');a.rel='apple-touch-icon';a.href=iconURL;document.head.appendChild(a);
+    const f=document.createElement('link');f.rel='icon';f.href=iconURL;document.head.appendChild(f);
+    if('serviceWorker' in navigator){
+      const sw=`self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>self.clients.claim());self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.open('drishti-v1').then(c=>c.match(e.request).then(r=>{const net=fetch(e.request).then(res=>{if(res&&res.ok)c.put(e.request,res.clone());return res}).catch(()=>r);return r||net})))});`;
+      navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'text/javascript'}))).catch(()=>{});
+    }
+  }catch(e){/* icon/SW best-effort */}
+})();
+
+/* ═══════════ SCROLL REVEAL ═══════════ */
+(function(){
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+})();
+
+/* ═══════════ SENSING STAGE — simulation engine ═══════════ */
+const SIM={
+  sensors:{camera:true,radar:true,ultrasonic:false,lidar:false},
+  condition:'clear',
+  hazards:[],
+  lastVerdict:'clear',
+  t:0
+};
+
+const SENSOR_META={
+  camera:{color:'#22d3ee',label:'Camera',fovDeg:70,range:.52,
+    eff:{cow:.92,pedestrian:.9,rickshaw:.9,truck:.95,pothole:.8},
+    condMod:{clear:1,monsoon:.35,night:.22}},
+  radar:{color:'#d946ef',label:'Radar',fovDeg:20,range:.8,
+    eff:{cow:.22,pedestrian:.3,rickshaw:.85,truck:.95,pothole:.05},
+    condMod:{clear:1,monsoon:.95,night:1}},
+  ultrasonic:{color:'#fbbf24',label:'Ultrasonic',fovDeg:120,range:.14,
+    eff:{cow:.85,pedestrian:.85,rickshaw:.9,truck:.9,pothole:.1},
+    condMod:{clear:1,monsoon:.9,night:1}},
+  lidar:{color:'#4ade80',label:'LiDAR',fovDeg:360,range:.6,
+    eff:{cow:.95,pedestrian:.92,rickshaw:.95,truck:.95,pothole:.6},
+    condMod:{clear:1,monsoon:.5,night:1}}
+};
+
+const HAZARD_META={
+  cow:{emoji:'🐄',speed:.12,size:26,lane:'random'},
+  pedestrian:{emoji:'🚶',speed:.3,size:20,lane:'edgeIn'},
+  rickshaw:{emoji:'🛺',speed:.55,size:24,lane:'weave'},
+  truck:{emoji:'🚛',speed:.4,size:32,lane:'center'},
+  pothole:{emoji:'🕳',speed:0,size:22,lane:'random'}
+};
+
+const canvas=document.getElementById('simCanvas');
+const ctx=canvas.getContext('2d');
+let W=0,H=0,DPR=1;
+function resizeCanvas(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const w=canvas.parentElement.clientWidth;
+  const h=Math.max(300,Math.min(460,Math.round(w*0.62)));
+  canvas.width=w*DPR;canvas.height=h*DPR;
+  canvas.style.height=h+'px';
+  W=w;H=h;ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resizeCanvas);
+resizeCanvas();
+
+const EGO=()=>({x:W/2,y:H*0.86});
+
+function spawnHazard(type){
+  const m=HAZARD_META[type];
+  const roadL=W*0.28,roadR=W*0.72;
+  let x;
+  if(m.lane==='center')x=W/2+(Math.random()*40-20);
+  else if(m.lane==='edgeIn')x=Math.random()<.5?roadL-10:roadR+10;
+  else x=roadL+Math.random()*(roadR-roadL);
+  SIM.hazards=[{type,x,y:-30,vy:m.speed===0?0.9:m.speed+0.85,vx:m.lane==='edgeIn'?(x<W/2?0.25:-0.25):(m.lane==='weave'?0.3:0),weaveT:Math.random()*6}];
+}
+
+function sensorSees(sKey,hz){
+  const s=SENSOR_META[sKey];if(!SIM.sensors[sKey])return {score:0,inCone:false};
+  const ego=EGO();
+  const dx=hz.x-ego.x,dy=ego.y-hz.y;
+  const dist=Math.hypot(dx,dy);
+  const rangePx=s.range*H;
+  if(dist>rangePx)return {score:0,inCone:false};
+  if(s.fovDeg<360){
+    const ang=Math.abs(Math.atan2(dx,dy))*180/Math.PI;
+    if(ang>s.fovDeg/2)return {score:0,inCone:false};
+  }
+  const base=s.eff[hz.type]??.5;
+  const mod=s.condMod[SIM.condition]??1;
+  const proximityBoost=sKey==='ultrasonic'?1:(1-dist/rangePx)*0.15+0.9;
+  return {score:base*mod*proximityBoost,inCone:true,dist};
+}
+
+function drawRoad(){
+  // background per condition
+  let sky='#0b0b14';
+  if(SIM.condition==='night')sky='#050508';
+  if(SIM.condition==='monsoon')sky='#0c1016';
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+  // road body
+  const roadL=W*0.24,roadR=W*0.76;
+  ctx.fillStyle=SIM.condition==='night'?'#101018':'#14141f';
+  ctx.fillRect(roadL,0,roadR-roadL,H);
+  // edges
+  ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(roadL,0);ctx.lineTo(roadL,H);ctx.moveTo(roadR,0);ctx.lineTo(roadR,H);ctx.stroke();
+  // faded / broken lane markings (India: intermittent!)
+  const scroll=(SIM.t*1.6)%56;
+  ctx.strokeStyle=SIM.condition==='night'?'rgba(255,255,255,.12)':'rgba(255,255,255,.3)';
+  ctx.lineWidth=3;ctx.setLineDash([22,34]);ctx.lineDashOffset=-scroll;
+  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
+  ctx.setLineDash([]);
+  // monsoon rain streaks
+  if(SIM.condition==='monsoon'){
+    ctx.strokeStyle='rgba(120,160,220,.14)';ctx.lineWidth=1;
+    for(let i=0;i<40;i++){
+      const rx=(i*97+SIM.t*7)%W;const ry=(i*211+SIM.t*13)%H;
+      ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx-3,ry+14);ctx.stroke();
+    }
+  }
+  // night vignette
+  if(SIM.condition==='night'){
+    const v=ctx.createRadialGradient(W/2,H*0.86,40,W/2,H*0.86,H*0.75);
+    v.addColorStop(0,'rgba(255,244,200,.10)');v.addColorStop(1,'rgba(0,0,0,.55)');
+    ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
+  }
+}
+
+function drawCones(){
+  const ego=EGO();
+  for(const key of Object.keys(SENSOR_META)){
+    if(!SIM.sensors[key])continue;
+    const s=SENSOR_META[key];
+    const r=s.range*H;
+    ctx.save();ctx.globalAlpha=0.15;
+    ctx.fillStyle=s.color;
+    ctx.beginPath();
+    if(s.fovDeg>=360){ctx.arc(ego.x,ego.y,r,0,Math.PI*2);}
+    else{
+      const half=s.fovDeg/2*Math.PI/180;
+      ctx.moveTo(ego.x,ego.y);
+      ctx.arc(ego.x,ego.y,r,-Math.PI/2-half,-Math.PI/2+half);
+      ctx.closePath();
+    }
+    ctx.fill();
+    ctx.globalAlpha=0.5;ctx.strokeStyle=s.color;ctx.lineWidth=1;ctx.stroke();
+    ctx.restore();
+  }
+  // sweep pulse on radar
+  if(SIM.sensors.radar){
+    const p=(SIM.t%90)/90;
+    ctx.save();ctx.globalAlpha=0.25*(1-p);
+    ctx.strokeStyle='#d946ef';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(ego.x,ego.y,p*SENSOR_META.radar.range*H,Math.PI*1.44,Math.PI*1.56);ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawEgo(){
+  const ego=EGO();
+  ctx.save();
+  ctx.shadowColor='#22d3ee';ctx.shadowBlur=14;
+  ctx.fillStyle='#e8e6f2';
+  const w=22,h=38;
+  ctx.beginPath();
+  ctx.roundRect?ctx.roundRect(ego.x-w/2,ego.y-h/2,w,h,7):ctx.rect(ego.x-w/2,ego.y-h/2,w,h);
+  ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#08080f';ctx.fillRect(ego.x-w/2+4,ego.y-h/2+7,w-8,9);
+  ctx.restore();
+}
+
+function stepHazards(){
+  const ego=EGO();
+  for(const hz of SIM.hazards){
+    hz.y+=hz.vy;
+    if(HAZARD_META[hz.type].lane==='weave'){hz.weaveT+=0.04;hz.x+=Math.sin(hz.weaveT)*1.4;}
+    else hz.x+=hz.vx;
+  }
+  SIM.hazards=SIM.hazards.filter(h=>h.y<H+40);
+}
+
+function drawHazards(){
+  for(const hz of SIM.hazards){
+    const m=HAZARD_META[hz.type];
+    // dim hazards at night (what the HUMAN sees is also degraded)
+    ctx.save();
+    if(SIM.condition==='night')ctx.globalAlpha=0.75;
+    ctx.font=m.size+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(m.emoji,hz.x,hz.y);
+    ctx.restore();
+    // detection ring
+    const fused=fusedScore(hz);
+    if(fused.score>0.5){ctx.strokeStyle='rgba(74,222,128,.9)';}
+    else if(fused.score>0.22){ctx.strokeStyle='rgba(251,191,36,.9)';}
+    else {ctx.strokeStyle='rgba(248,113,113,.9)';}
+    ctx.lineWidth=1.5;ctx.setLineDash(fused.score>0.5?[]:[4,4]);
+    ctx.strokeRect(hz.x-m.size*0.75,hz.y-m.size*0.75,m.size*1.5,m.size*1.5);
+    ctx.setLineDash([]);
+    if(fused.score>0.5&&fused.by){
+      ctx.font='10px "DM Mono",monospace';ctx.fillStyle=SENSOR_META[fused.by].color;
+      ctx.fillText(SENSOR_META[fused.by].label.toUpperCase(),hz.x,hz.y-m.size);
+    }
+  }
+}
+
+function fusedScore(hz){
+  let best=0,by=null;
+  for(const key of Object.keys(SENSOR_META)){
+    const r=sensorSees(key,hz);
+    if(r.score>best){best=r.score;by=key;}
+  }
+  return {score:best,by};
+}
+
+function updateReadout(){
+  const box=document.getElementById('readout');
+  const hz=SIM.hazards[0];
+  let html='';
+  for(const key of Object.keys(SENSOR_META)){
+    const s=SENSOR_META[key];
+    const on=SIM.sensors[key];
+    let cls='off',status='OFF';
+    if(on){
+      if(!hz){cls='';status='Scanning…';}
+      else{
+        const r=sensorSees(key,hz);
+        if(!r.inCone){cls='';status='Out of view';}
+        else if(r.score>0.5){cls='detect';status='DETECTED ✓';}
+        else if(r.score>0.22){cls='uncertain';status='Uncertain ~';}
+        else{cls='miss';status='MISSED ✗';}
+      }
+    }
+    html+=`<div class="readout-card ${cls}"><div class="s-name" style="color:${s.color}">${s.label}</div><div class="s-status">${status}</div></div>`;
+  }
+  box.innerHTML=html;
+}
+
+function updateVerdict(){
+  const v=document.getElementById('verdict');
+  const ego=EGO();
+  const hz=SIM.hazards[0];
+  if(!hz){v.className='verdict ok';v.textContent='ROAD CLEAR';SIM.lastVerdict='clear';return;}
+  const fused=fusedScore(hz);
+  const dist=ego.y-hz.y;
+  if(fused.score>0.5){v.className='verdict ok';v.textContent='DETECTED · TRACKING · '+(fused.by?SENSOR_META[fused.by].label.toUpperCase():'');}
+  else if(dist<H*0.35){v.className='verdict danger';v.textContent='⚠ UNDETECTED · COLLISION RISK';}
+  else{v.className='verdict warn';v.textContent='OBJECT AHEAD · NOT YET CONFIRMED';}
+}
+
+let frameCount=0;
+function loop(){
+  SIM.t++;
+  drawRoad();drawCones();stepHazards();drawHazards();drawEgo();
+  if(++frameCount%12===0){updateReadout();updateVerdict();}
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* controls */
+document.querySelectorAll('[data-sensor]').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.sensor;SIM.sensors[k]=!SIM.sensors[k];b.classList.toggle('on',SIM.sensors[k]);
+}));
+document.querySelectorAll('[data-cond]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-cond]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');SIM.condition=b.dataset.cond;
+}));
+document.querySelectorAll('[data-hazard]').forEach(b=>b.addEventListener('click',()=>{
+  spawnHazard(b.dataset.hazard);
+  b.classList.add('on');setTimeout(()=>b.classList.remove('on'),350);
+}));
+
+/* ═══════════ PIPELINE ═══════════ */
+const PIPE=[
+  {name:'Sense',body:'Raw data enters the stack: the camera captures 30–60 photon frames a second, radar fires 77 GHz radio waves and times the echo, LiDAR paints the scene with laser pulses, ultrasonic sensors ping the near field. Nothing here is "understanding" — it is measurement. A cow at this stage is just pixels, a radar return, a point cloud blob.',tech:'Hardware: CMOS image sensors · 77GHz mmWave radar · 905/1550nm LiDAR · 40–58kHz ultrasonic\nOutput: frames, range-doppler maps, point clouds, echo times'},
+  {name:'Perceive',body:'Neural networks turn measurement into meaning. Object detectors (YOLO-family, transformers) draw boxes around vehicles and pedestrians; segmentation networks label every pixel as road, lane, or obstacle; sensor fusion (often a Kalman or deep-fusion layer) merges camera, radar, and LiDAR views into one belief about the world. This is where a blob becomes "cow, 34 metres, stationary."',tech:'Models: CNN/ViT detectors · semantic segmentation · Kalman & deep sensor fusion\nOutput: object list with class, position, velocity, confidence'},
+  {name:'Plan',body:'Given the world model, the planner predicts what every actor will do in the next few seconds — will the rickshaw cut in? is the pedestrian committing to cross? — then searches for a trajectory that stays safe, legal, and comfortable. In L1–L2 systems the "plan" may be as simple as "hold lane centre" or "brake now."',tech:'Methods: behaviour prediction · cost-based trajectory search · rule engines (AEB triggers)\nOutput: target path + speed profile, or an intervention decision'},
+  {name:'Act',body:'Drive-by-wire actuators execute the plan: electric power steering nudges the wheel, the brake booster builds pressure milliseconds before impact would become unavoidable. Every action is watched by a supervisor — and below Level 3, by you. The loop then restarts, ~20–50 times per second.',tech:'Actuators: EPS steering · ESC/brake-by-wire · throttle control\nSafety: torque limits, driver-override always wins below L3'}
+];
+const pipeDetail=document.getElementById('pipeDetail');
+function showStage(i){
+  document.querySelectorAll('.pipe-stage').forEach((el,j)=>el.classList.toggle('active',i===j));
+  const p=PIPE[i];
+  pipeDetail.innerHTML=`<h3>${String(i+1).padStart(2,'0')} · ${p.name}</h3><p>${p.body}</p><div class="tech">${p.tech.replace(/\n/g,'<br>')}</div>`;
+  pipeDetail.classList.add('show');
+}
+document.querySelectorAll('.pipe-stage').forEach(el=>el.addEventListener('click',()=>showStage(+el.dataset.stage)));
+showStage(0);
+
+/* ═══════════ SAE LEVELS ═══════════ */
+const SAE=[
+  {name:'No Automation',tag:'You do everything',desc:'The human performs all driving. The car may warn (blind-spot beep, lane-departure chime) but never touches the controls.',duties:[0,0,0,0],india:'Most of the Indian fleet today. Warnings-only systems are appearing even in budget segments.'},
+  {name:'Driver Assistance',tag:'One helping hand',desc:'The system controls either steering or speed — never both at once. Adaptive cruise control alone, or lane-keep assist alone.',duties:[35,35,0,0],india:'Common in premium hatchbacks and up. ACC struggles with vehicles cutting in without indicators.'},
+  {name:'Partial Automation',tag:'Hands assisted, eyes on',desc:'Steering and speed together — but you must supervise every second. The system assumes lanes exist and traffic behaves.',duties:[70,70,0,0],india:'The current ceiling for cars sold in India (Level 2 / "L2 ADAS" badging). Faded lane paint and mixed traffic force frequent disengagement.'},
+  {name:'Conditional Automation',tag:'Eyes off — sometimes',desc:'The car truly drives itself within a defined domain (e.g., highway traffic jams) and asks you to take over with notice. Legal liability begins shifting to the system.',duties:[100,100,80,20],india:'Not yet approved for Indian roads. The unstructured-traffic domain problem is hardest exactly here.'},
+  {name:'High Automation',tag:'No driver needed — in a zone',desc:'Within its operational design domain — a mapped city, a campus, a highway network — no human fallback is ever required. Outside it, the vehicle simply won\u2019t engage.',duties:[100,100,100,90],india:'Likely first in India as geo-fenced shuttles, ports, and mining/logistics corridors — controlled domains, not open roads.'},
+  {name:'Full Automation',tag:'Steering wheel optional',desc:'Drives anywhere a human could, in any condition. No pedals, no wheel required. This level exists nowhere in the world today as a deployed consumer product.',duties:[100,100,100,100],india:'A Level 5 system that can handle an unmarked Tier-2 junction at festival time would arguably be the hardest robotics achievement on Earth.'}
+];
+const DUTY_LABELS=['Steering','Speed / Pedals','Monitoring road','Fallback duty'];
+const saePanel=document.getElementById('saePanel');
+function showSAE(i){
+  document.querySelectorAll('.sae-btn').forEach((b,j)=>b.classList.toggle('active',i===j));
+  const s=SAE[i];
+  let rows='';
+  s.duties.forEach((d,k)=>{
+    rows+=`<div class="duty-row"><div class="duty-label">${DUTY_LABELS[k]}</div><div class="duty-bar"><div class="duty-fill" style="width:0%" data-w="${d}"></div></div></div>`;
+  });
+  saePanel.innerHTML=`<h3>Level ${i} — ${s.name}</h3><div class="sae-tagline">${s.tag}</div><p class="sae-desc">${s.desc}</p>${rows}
+  <div class="duty-legend"><span><span class="dot" style="background:linear-gradient(90deg,#d946ef,#22d3ee)"></span>System share</span><span><span class="dot" style="background:#15152a;border:1px solid #55536e"></span>Human share</span></div>
+  <div class="sae-india"><b>India lens:</b> ${s.india}</div>`;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{saePanel.querySelectorAll('.duty-fill').forEach(f=>f.style.width=f.dataset.w+'%')}));
+}
+document.querySelectorAll('.sae-btn').forEach(b=>b.addEventListener('click',()=>showSAE(+b.dataset.level)));
+showSAE(2);
+
+/* ═══════════ INDIA REALITY CHECK ═══════════ */
+const REALITY=[
+  {emoji:'🐄',title:'The stationary cow',breaks:'Radar filters out stationary objects to avoid braking for every signboard — and a cow has almost no radar cross-section anyway. Camera-only stacks trained on Western datasets have few "bovine on highway" examples.',needs:'Vision models trained on Indian data, LiDAR or stereo depth, and AEB logic that trusts vision on organic obstacles.'},
+  {emoji:'🛣',title:'Lanes that aren\u2019t there',breaks:'Lane-keep assist assumes painted, continuous markings. Indian roads offer faded paint, sudden merges, and roads where lanes are a social negotiation, not a line.',needs:'Free-space perception ("where CAN I drive") instead of lane-following ("where is the paint"). This is the deeper architecture shift.'},
+  {emoji:'🛺',title:'The rickshaw swarm',breaks:'Prediction models expect lane-disciplined actors with indicators. Auto-rickshaws weave, squeeze 3-abreast into 2 lanes, and negotiate gaps with eye contact — which a planner cannot see.',needs:'Interaction-aware prediction trained on dense heterogeneous traffic; shorter planning horizons with faster replanning.'},
+  {emoji:'🌧',title:'Monsoon physics',breaks:'Heavy rain scatters LiDAR pulses, blinds cameras, and hides potholes under water sheets. Grip assumptions in AEB distance models fail on wet, oil-slicked first-rain roads.',needs:'Radar-weighted fusion in rain, road-condition estimation, and braking models tuned for Indian monsoon friction data.'},
+  {emoji:'🔦',title:'Wrong-side headlights',breaks:'A vehicle approaching in YOUR lane at night violates the most basic prior in every prediction model: traffic flows one way per lane. Oncoming high-beams also flare the camera.',needs:'Anomaly-tolerant planning that never fully trusts lane-direction priors, plus HDR imaging for glare.'},
+  {emoji:'🚛',title:'The unmarked hazard',breaks:'A broken-down truck at night, marked by a pile of leaves or stones instead of reflective triangles. No dataset label exists for "leaf branch = danger ahead."',needs:'Generic obstacle detection that doesn\u2019t depend on object classes — geometry over taxonomy. LiDAR and occupancy networks shine here.'}
+];
+document.getElementById('realityGrid').innerHTML=REALITY.map(r=>`
+  <div class="reality-card">
+    <div class="reality-emoji">${r.emoji}</div>
+    <h3>${r.title}</h3>
+    <div class="rc-block"><div class="rc-label breaks">What breaks</div><p>${r.breaks}</p></div>
+    <div class="rc-block"><div class="rc-label needs">What\u2019s needed</div><p>${r.needs}</p></div>
+  </div>`).join('');
+
+/* ═══════════ AI TUTOR — Claude Haiku BYOK ═══════════ */
+const KEY_STORE='drishti_api_key';
+const chatLog=document.getElementById('chatLog');
+const chatInput=document.getElementById('chatInput');
+const sendBtn=document.getElementById('sendBtn');
+const keyRow=document.getElementById('keyRow');
+const keyInput=document.getElementById('keyInput');
+let history=[];
+
+document.getElementById('keyToggle').addEventListener('click',()=>{
+  keyRow.classList.toggle('show');
+  keyInput.value=localStorage.getItem(KEY_STORE)||'';
+});
+document.getElementById('keySave').addEventListener('click',()=>{
+  const v=keyInput.value.trim();
+  if(v){localStorage.setItem(KEY_STORE,v);addMsg('sys','API key saved to this device.');}
+  else{localStorage.removeItem(KEY_STORE);addMsg('sys','API key cleared.');}
+  keyRow.classList.remove('show');
+});
+
+function addMsg(cls,text){
+  const d=document.createElement('div');d.className='msg '+cls;d.textContent=text;
+  chatLog.appendChild(d);chatLog.scrollTop=chatLog.scrollHeight;return d;
+}
+
+function labState(){
+  const on=Object.keys(SIM.sensors).filter(k=>SIM.sensors[k]).join(', ')||'none';
+  const hz=SIM.hazards[0];
+  return `Enabled sensors: ${on}. Condition: ${SIM.condition}. Hazard on road: ${hz?hz.type:'none'}.`+(hz?` Fusion verdict: ${fusedScore(hz).score>0.5?'detected':'NOT detected'}.`:'');
+}
+
+async function askTutor(q){
+  const key=localStorage.getItem(KEY_STORE);
+  if(!key){keyRow.classList.add('show');addMsg('sys','Add your Anthropic API key first (stored only in this browser).');return;}
+  addMsg('user',q);
+  history.push({role:'user',content:q});
+  if(history.length>12)history=history.slice(-12);
+  const thinking=addMsg('ai','…');
+  sendBtn.disabled=true;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:700,
+        system:'You are the DRISHTI tutor, an expert and friendly ADAS/autonomous-driving educator inside a single-file PWA lab built by Krishnamurthy Kandregula Innovation Lab. Explain sensor physics, sensor fusion, SAE levels, and Indian road challenges clearly and concisely (under 180 words unless asked for depth). Use plain language, occasional analogies from Indian roads. Current live lab state: '+labState(),
+        messages:history
+      })
+    });
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||('HTTP '+res.status));}
+    const data=await res.json();
+    const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim()||'(empty response)';
+    thinking.textContent=text;
+    history.push({role:'assistant',content:text});
+  }catch(err){
+    thinking.className='msg sys';
+    thinking.textContent='Tutor error: '+err.message+(String(err.message).includes('401')?' — check your API key.':'');
+    history.pop();
+  }finally{sendBtn.disabled=false;}
+}
+
+sendBtn.addEventListener('click',()=>{const q=chatInput.value.trim();if(q){chatInput.value='';askTutor(q);}});
+chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendBtn.click();}});
+document.querySelectorAll('.suggest').forEach(b=>b.addEventListener('click',()=>askTutor(b.textContent)));
+</script>
+</body>
+</html>
