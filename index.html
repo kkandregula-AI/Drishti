@@ -168,8 +168,8 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
     <div class="hero-devanagari">दृष्टि — vision · the act of seeing</div>
     <p class="hero-sub">How does a car <b>learn to see</b>? Toggle real sensor physics, break Western assumptions on an Indian highway, and walk the full autonomy stack — <b>Sense → Perceive → Plan → Act</b>.</p>
     <div class="hero-cta">
-      <a href="#stage" class="btn btn-primary">Enter the Lab</a>
-      <a href="#tutor" class="btn btn-ghost">Ask the AI Tutor</a>
+      <a href="#stage" class="btn btn-primary" data-scroll="stage">Enter the Lab</a>
+      <a href="#tutor" class="btn btn-ghost" data-scroll="tutor">Ask the AI Tutor</a>
     </div>
   </div>
 </div>
@@ -178,7 +178,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
   <div class="wrap">
     <div class="eyebrow reveal">01 · The Sensing Stage</div>
     <h2 class="reveal">Four eyes, four blind spots</h2>
-    <p class="lede reveal">Every ADAS sensor sees the world differently — and fails differently. Toggle them, spawn hazards, change the weather. Watch the fusion verdict decide what the car actually knows.</p>
+    <p class="lede reveal">Every ADAS sensor sees the world differently — and fails differently. Toggle them, spawn hazards, change the weather. Watch the fusion verdict decide what the car knows — and whether AEB fires in time.</p>
     <div class="stage-shell reveal">
       <div class="stage-canvas-wrap">
         <canvas id="simCanvas"></canvas>
@@ -338,13 +338,25 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 })();
 
+
+/* ═══════════ SAFE IN-PAGE NAV (sandbox/iframe-proof) ═══════════ */
+document.querySelectorAll('[data-scroll]').forEach(a=>a.addEventListener('click',e=>{
+  e.preventDefault();
+  const t=document.getElementById(a.dataset.scroll);
+  if(t)t.scrollIntoView({behavior:'smooth',block:'start'});
+}));
+
 /* ═══════════ SENSING STAGE — simulation engine ═══════════ */
 const SIM={
   sensors:{camera:true,radar:true,ultrasonic:false,lidar:false},
   condition:'clear',
   hazards:[],
   lastVerdict:'clear',
-  t:0
+  t:0,
+  speed:1,        // ego world speed (1 = cruising, 0 = stopped)
+  brake:false,    // PLAN stage decision
+  scrollPos:0,
+  collisionT:0
 };
 
 const SENSOR_META={
@@ -427,7 +439,7 @@ function drawRoad(){
   ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=2;
   ctx.beginPath();ctx.moveTo(roadL,0);ctx.lineTo(roadL,H);ctx.moveTo(roadR,0);ctx.lineTo(roadR,H);ctx.stroke();
   // faded / broken lane markings (India: intermittent!)
-  const scroll=(SIM.t*1.6)%56;
+  const scroll=SIM.scrollPos%56;
   ctx.strokeStyle=SIM.condition==='night'?'rgba(255,255,255,.12)':'rgba(255,255,255,.3)';
   ctx.lineWidth=3;ctx.setLineDash([22,34]);ctx.lineDashOffset=-scroll;
   ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
@@ -494,12 +506,36 @@ function drawEgo(){
 
 function stepHazards(){
   const ego=EGO();
-  for(const hz of SIM.hazards){
-    hz.y+=hz.vy;
-    if(HAZARD_META[hz.type].lane==='weave'){hz.weaveT+=0.04;hz.x+=Math.sin(hz.weaveT)*1.4;}
-    else hz.x+=hz.vx;
+  const hz=SIM.hazards[0];
+  /* ── PLAN: should we brake? (needs detection + proximity) ── */
+  let brake=false;
+  if(hz&&!hz.cleared){
+    const fused=fusedScore(hz);
+    const dist=ego.y-hz.y;
+    const inPath=Math.abs(hz.x-ego.x)<W*0.14;
+    if(fused.score>0.5&&inPath&&dist<H*0.5)brake=true;
   }
-  SIM.hazards=SIM.hazards.filter(h=>h.y<H+40);
+  SIM.brake=brake;
+  /* ── ACT: ease world speed toward target (brake decel > accel) ── */
+  const target=brake?0:1;
+  SIM.speed+=(target-SIM.speed)*(brake?0.07:0.02);
+  if(brake&&SIM.speed<0.02)SIM.speed=0;
+  for(const h of SIM.hazards){
+    if(h.cleared){h.alpha=(h.alpha??1)-0.03;continue;}
+    const sp=Math.max(SIM.speed,0);
+    h.y+=h.vy*sp+(HAZARD_META[h.type].speed*0.4*(1-sp)*(h.type==='pothole'?0:1));
+    if(HAZARD_META[h.type].lane==='weave'){h.weaveT+=0.04*Math.max(sp,.2);h.x+=Math.sin(h.weaveT)*1.4*sp;}
+    else h.x+=h.vx*sp;
+    const dist=ego.y-h.y;
+    /* stopped safely in front -> hazard wanders off after a beat */
+    if(SIM.brake&&SIM.speed<0.05&&dist<H*0.32){h.stopT=(h.stopT||0)+1;if(h.stopT>150){h.cleared=true;h.alpha=1;}}
+    /* collision only if the stack never confirmed it */
+    if(!h.cleared&&dist<HAZARD_META[h.type].size*0.8&&Math.abs(h.x-ego.x)<26){
+      if(fusedScore(h).score<=0.5)SIM.collisionT=46;
+      h.cleared=true;h.alpha=1;
+    }
+  }
+  SIM.hazards=SIM.hazards.filter(h=>h.y<H+40&&(h.alpha??1)>0);
 }
 
 function drawHazards(){
@@ -507,10 +543,11 @@ function drawHazards(){
     const m=HAZARD_META[hz.type];
     // dim hazards at night (what the HUMAN sees is also degraded)
     ctx.save();
-    if(SIM.condition==='night')ctx.globalAlpha=0.75;
+    ctx.globalAlpha=(hz.alpha??1)*(SIM.condition==='night'?0.75:1);
     ctx.font=m.size+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(m.emoji,hz.x,hz.y);
     ctx.restore();
+    if(hz.cleared)continue;
     // detection ring
     const fused=fusedScore(hz);
     if(fused.score>0.5){ctx.strokeStyle='rgba(74,222,128,.9)';}
@@ -562,18 +599,28 @@ function updateVerdict(){
   const v=document.getElementById('verdict');
   const ego=EGO();
   const hz=SIM.hazards[0];
-  if(!hz){v.className='verdict ok';v.textContent='ROAD CLEAR';SIM.lastVerdict='clear';return;}
+  if(SIM.collisionT>0){v.className='verdict danger';v.textContent='💥 COLLISION · SENSOR GAP';return;}
+  if(!hz||hz.cleared){v.className='verdict ok';v.textContent=SIM.speed<0.9?'RESUMING · ROAD CLEAR':'ROAD CLEAR';SIM.lastVerdict='clear';return;}
   const fused=fusedScore(hz);
   const dist=ego.y-hz.y;
-  if(fused.score>0.5){v.className='verdict ok';v.textContent='DETECTED · TRACKING · '+(fused.by?SENSOR_META[fused.by].label.toUpperCase():'');}
+  if(SIM.brake&&SIM.speed<0.05){v.className='verdict warn';v.textContent='⛔ AEB · STOPPED — HAZARD AHEAD';}
+  else if(SIM.brake){v.className='verdict warn';v.textContent='🛑 AEB ENGAGED · BRAKING';}
+  else if(fused.score>0.5){v.className='verdict ok';v.textContent='DETECTED · TRACKING · '+(fused.by?SENSOR_META[fused.by].label.toUpperCase():'');}
   else if(dist<H*0.35){v.className='verdict danger';v.textContent='⚠ UNDETECTED · COLLISION RISK';}
   else{v.className='verdict warn';v.textContent='OBJECT AHEAD · NOT YET CONFIRMED';}
 }
 
 let frameCount=0;
+function drawCollisionFlash(){
+  if(SIM.collisionT<=0)return;
+  SIM.collisionT--;
+  ctx.fillStyle='rgba(248,113,113,'+(0.35*SIM.collisionT/46)+')';
+  ctx.fillRect(0,0,W,H);
+}
 function loop(){
   SIM.t++;
-  drawRoad();drawCones();stepHazards();drawHazards();drawEgo();
+  SIM.scrollPos+=1.6*SIM.speed;
+  drawRoad();drawCones();stepHazards();drawHazards();drawEgo();drawCollisionFlash();
   if(++frameCount%12===0){updateReadout();updateVerdict();}
   requestAnimationFrame(loop);
 }
@@ -680,7 +727,7 @@ function addMsg(cls,text){
 function labState(){
   const on=Object.keys(SIM.sensors).filter(k=>SIM.sensors[k]).join(', ')||'none';
   const hz=SIM.hazards[0];
-  return `Enabled sensors: ${on}. Condition: ${SIM.condition}. Hazard on road: ${hz?hz.type:'none'}.`+(hz?` Fusion verdict: ${fusedScore(hz).score>0.5?'detected':'NOT detected'}.`:'');
+  return `Enabled sensors: ${on}. Condition: ${SIM.condition}. Hazard on road: ${hz?hz.type:'none'}. Ego state: ${SIM.brake?(SIM.speed<0.05?'AEB stopped':'AEB braking'):'cruising'}.`+(hz?` Fusion verdict: ${fusedScore(hz).score>0.5?'detected':'NOT detected'}.`:'');
 }
 
 async function askTutor(q){
