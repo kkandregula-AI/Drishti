@@ -556,9 +556,12 @@ function createSim(CFG){
     for(const o of activeObjs()){
       const d=ego.y-o.y;
       if(d<=0||d>=H*0.55)continue;
-      /* predictive: a crosser heading toward our corridor is a threat before it arrives */
+      /* predictive: a crosser heading toward our corridor is a threat before it arrives;
+         and during a lane change, the corridor is the SWEPT PATH — current position
+         through the destination — never a blind gap between lanes */
       const thr=converging(o)?LANE_HALF*2.4:LANE_HALF;
-      if(Math.abs(o.fx-SIM.egoFx)<thr&&d<bd){bd=d;best=o;}
+      const lo=Math.min(SIM.egoFx,SIM.egoTargetFx)-thr,hi=Math.max(SIM.egoFx,SIM.egoTargetFx)+thr;
+      if(o.fx>lo&&o.fx<hi&&d<bd){bd=d;best=o;}
     }
     return best;
   }
@@ -620,6 +623,14 @@ function createSim(CFG){
         const pt=SIM.passTarget;
         const arrived=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.012;
         if(arrived)SIM.egoLane=SIM.targetLane;
+        /* mid-change safety: destination lane became occupied -> abort, return, follow */
+        if(!arrived){
+          const destBusy=activeObjs().some(o=>o!==pt&&Math.abs(o.fx-LANES[SIM.targetLane])<LANE_HALF&&o.y>ego.y-H*0.4&&o.y<ego.y+H*0.2);
+          if(destBusy){
+            SIM.targetLane=SIM.egoLane;SIM.egoTargetFx=LANES[SIM.egoLane];
+            SIM.mode='follow';SIM.decideT=70;break;
+          }
+        }
         const passed=!pt||pt.cleared||pt.y>ego.y+40;
         if(arrived&&passed){SIM.mode='cruise';SIM.passTarget=null;SIM.decideT=30;}
         break;}
@@ -737,7 +748,7 @@ function createSim(CFG){
     const y=y0??(fromBottom?H+70:-70);
     const fx=lanes[li]+(Math.random()*0.02-0.01);
     if(SIM.objects.some(o=>!o.cleared&&Math.abs(o.fx-fx)<LANE_HALF&&Math.abs(o.y-y)<H*0.28))return;
-    if(Math.abs(fx-SIM.egoFx)<LANE_HALF&&Math.abs(y-EGO().y)<H*0.3)return;
+    if((Math.abs(fx-SIM.egoFx)<LANE_HALF||Math.abs(fx-SIM.egoTargetFx)<LANE_HALF)&&Math.abs(y-EGO().y)<H*0.35)return;
     SIM.objects.push({type,fx,y,own,dirn,alpha:1});
   }
   function spawnScenery(y0){
