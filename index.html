@@ -156,7 +156,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
   <div class="wrap">
     <div class="eyebrow reveal">01 · The Sensing Stage</div>
     <h2 class="reveal">Four eyes, four blind spots</h2>
-    <p class="lede reveal">Every ADAS sensor sees the world differently — and fails differently. Toggle them, spawn hazards, change the weather. Watch the car decide: brake for the unpredictable, creep past the stationary, overtake the slow.</p>
+    <p class="lede reveal">Every ADAS sensor sees the world differently — and fails differently. Toggle them, spawn hazards, change the weather. A live six-lane Indian highway: three lanes each way, flowing traffic, life on the shoulders. Watch the car decide — follow, overtake, brake, creep — while pedestrians dart and cows wander in on their own.</p>
     <div class="stage-shell reveal">
       <div class="stage-canvas-wrap">
         <canvas id="simCanvas"></canvas>
@@ -184,6 +184,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
           <div class="ctrl-group-label">Spawn Hazard</div>
           <div class="chip-row">
             <button class="chip" data-hazard="cow">🐄 Cow</button>
+            <button class="chip" data-hazard="dog">🐕 Dog</button>
             <button class="chip" data-hazard="pedestrian">🚶 Pedestrian</button>
             <button class="chip" data-hazard="rickshaw">🛺 Auto-rickshaw</button>
             <button class="chip" data-hazard="truck">🚛 Truck</button>
@@ -293,44 +294,52 @@ document.querySelectorAll('[data-scroll]').forEach(a=>a.addEventListener('click'
   if(t)t.scrollIntoView({behavior:'smooth',block:'start'});
 }));
 
-/* ═══════════ SENSING STAGE — simulation engine ═══════════ */
+/* ═══════════ SENSING STAGE — 6-lane highway simulation engine ═══════════ */
+const ROADV=2.2;                       /* px/frame at full cruise */
+const LANES_SAME=[0.145,0.275,0.405];  /* ego carriageway lane centres (fraction of W) */
+const LANES_ONC=[0.595,0.725,0.855];   /* oncoming carriageway */
+const HOME=1;                          /* preferred cruising lane (middle) */
+
 const SIM={
   sensors:{camera:true,radar:true,ultrasonic:false,lidar:false},
   condition:'clear',
-  hazards:[],
-  lastVerdict:'clear',
-  t:0,
-  speed:1,        // ego world speed (1 = cruising, 0 = stopped)
-  brake:false,    // PLAN stage decision
-  scrollPos:0,
-  collisionT:0,
-  egoFx:0.375,egoTargetFx:0.375,   // ego lane position (fraction of W)
-  speedTarget:1,maneuver:null,phase:null,
-  holding:false,passFx:0.625
+  objects:[],
+  t:0,scrollPos:0,
+  speed:1,speedTarget:1,brake:false,
+  egoFx:LANES_SAME[HOME],egoTargetFx:LANES_SAME[HOME],egoLane:HOME,targetLane:HOME,
+  mode:'cruise',passTarget:null,holding:false,blocked:false,decideT:0,
+  collisionT:0,nextEvent:400
 };
-const LANE_L=0.375,LANE_R=0.625;  // left-hand traffic: cruise left, overtake right
+
+const TYPES={
+  car:      {emoji:'🚗',size:25,cls:'vehicle',own:[0.45,0.8]},
+  suv:      {emoji:'🚙',size:25,cls:'vehicle',own:[0.4,0.75]},
+  bus:      {emoji:'🚌',size:30,cls:'vehicle',own:[0.3,0.5]},
+  truck:    {emoji:'🚛',size:30,cls:'vehicle',own:[0.25,0.45]},
+  bike:     {emoji:'🏍',size:19,cls:'vehicle',own:[0.5,0.9]},
+  rickshaw: {emoji:'🛺',size:23,cls:'vehicle',own:[0.2,0.4],weave:true},
+  cow:      {emoji:'🐄',size:25,cls:'unpredictable'},
+  dog:      {emoji:'🐕',size:19,cls:'unpredictable'},
+  pedestrian:{emoji:'🚶',size:19,cls:'unpredictable'},
+  pothole:  {emoji:'🕳',size:19,cls:'static'},
+  tree:     {emoji:'🌳',size:26,cls:'scenery'},
+  stall:    {emoji:'🛖',size:23,cls:'scenery'}
+};
+const EFFKEY=t=>({car:'vehicle',suv:'vehicle',bus:'vehicle',truck:'vehicle',rickshaw:'vehicle',bike:'bike'}[t]||t);
 
 const SENSOR_META={
-  camera:{color:'#22d3ee',label:'Camera',fovDeg:70,range:.52,
-    eff:{cow:.92,pedestrian:.9,rickshaw:.9,truck:.95,pothole:.8},
+  camera:{color:'#22d3ee',label:'Camera',fovDeg:70,range:.5,
+    eff:{vehicle:.93,bike:.85,cow:.92,dog:.85,pedestrian:.9,pothole:.75},
     condMod:{clear:1,monsoon:.35,night:.22}},
-  radar:{color:'#d946ef',label:'Radar',fovDeg:20,range:.8,
-    eff:{cow:.22,pedestrian:.3,rickshaw:.85,truck:.95,pothole:.05},
+  radar:{color:'#d946ef',label:'Radar',fovDeg:20,range:.78,
+    eff:{vehicle:.95,bike:.7,cow:.22,dog:.15,pedestrian:.3,pothole:.05},
     condMod:{clear:1,monsoon:.95,night:1}},
-  ultrasonic:{color:'#fbbf24',label:'Ultrasonic',fovDeg:120,range:.14,
-    eff:{cow:.85,pedestrian:.85,rickshaw:.9,truck:.9,pothole:.1},
+  ultrasonic:{color:'#fbbf24',label:'Ultrasonic',fovDeg:120,range:.13,
+    eff:{vehicle:.9,bike:.85,cow:.85,dog:.8,pedestrian:.85,pothole:.1},
     condMod:{clear:1,monsoon:.9,night:1}},
-  lidar:{color:'#4ade80',label:'LiDAR',fovDeg:360,range:.6,
-    eff:{cow:.95,pedestrian:.92,rickshaw:.95,truck:.95,pothole:.6},
+  lidar:{color:'#4ade80',label:'LiDAR',fovDeg:360,range:.58,
+    eff:{vehicle:.95,bike:.9,cow:.95,dog:.9,pedestrian:.92,pothole:.6},
     condMod:{clear:1,monsoon:.5,night:1}}
-};
-
-const HAZARD_META={
-  cow:{emoji:'🐄',speed:.12,size:26,lane:'random'},
-  pedestrian:{emoji:'🚶',speed:.3,size:20,lane:'edgeIn'},
-  rickshaw:{emoji:'🛺',speed:.55,size:24,lane:'weave'},
-  truck:{emoji:'🚛',speed:.4,size:32,lane:'center'},
-  pothole:{emoji:'🕳',speed:0,size:22,lane:'random'}
 };
 
 const canvas=document.getElementById('simCanvas');
@@ -339,7 +348,7 @@ let W=0,H=0,DPR=1;
 function resizeCanvas(){
   DPR=Math.min(window.devicePixelRatio||1,2);
   const w=canvas.parentElement.clientWidth;
-  const h=Math.max(300,Math.min(460,Math.round(w*0.62)));
+  const h=Math.max(340,Math.min(560,Math.round(w*0.85)));
   canvas.width=w*DPR;canvas.height=h*DPR;
   canvas.style.height=h+'px';
   W=w;H=h;ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -347,23 +356,13 @@ function resizeCanvas(){
 window.addEventListener('resize',resizeCanvas);
 resizeCanvas();
 
-const EGO=()=>({x:W*SIM.egoFx,y:H*0.86});
+const EGO=()=>({x:W*SIM.egoFx,y:H*0.84});
 
-function spawnHazard(type){
-  const m=HAZARD_META[type];
-  const roadL=W*0.28,roadR=W*0.72;
-  let x;
-  const egoLaneX=W*LANE_L;
-  if(m.lane==='center')x=egoLaneX+(Math.random()*30-15);
-  else if(m.lane==='edgeIn')x=Math.random()<.5?roadL-10:roadR+10;
-  else x=Math.random()<0.7?egoLaneX+(Math.random()*W*0.1-W*0.05):roadL+Math.random()*(roadR-roadL);
-  SIM.hazards=[{type,x,y:-30,vy:m.speed===0?0.9:m.speed+0.85,vx:m.lane==='edgeIn'?(x<W/2?0.25:-0.25):(m.lane==='weave'?0.3:0),weaveT:Math.random()*6}];
-}
-
-function sensorSees(sKey,hz){
+/* ── sensing ── */
+function sensorSees(sKey,o){
   const s=SENSOR_META[sKey];if(!SIM.sensors[sKey])return {score:0,inCone:false};
   const ego=EGO();
-  const dx=hz.x-ego.x,dy=ego.y-hz.y;
+  const dx=o.fx*W-ego.x,dy=ego.y-o.y;
   const dist=Math.hypot(dx,dy);
   const rangePx=s.range*H;
   if(dist>rangePx)return {score:0,inCone:false};
@@ -371,57 +370,292 @@ function sensorSees(sKey,hz){
     const ang=Math.abs(Math.atan2(dx,dy))*180/Math.PI;
     if(ang>s.fovDeg/2)return {score:0,inCone:false};
   }
-  const base=s.eff[hz.type]??.5;
+  const base=s.eff[EFFKEY(o.type)]??.5;
   const mod=s.condMod[SIM.condition]??1;
-  const proximityBoost=sKey==='ultrasonic'?1:(1-dist/rangePx)*0.15+0.9;
-  return {score:base*mod*proximityBoost,inCone:true,dist};
+  const prox=sKey==='ultrasonic'?1:(1-dist/rangePx)*0.15+0.9;
+  return {score:base*mod*prox,inCone:true,dist};
+}
+function fusedScore(o){
+  let best=0,by=null;
+  for(const key of Object.keys(SENSOR_META)){
+    const r=sensorSees(key,o);
+    if(r.score>best){best=r.score;by=key;}
+  }
+  return {score:best,by};
 }
 
+/* ── world queries ── */
+const activeObjs=()=>SIM.objects.filter(o=>!o.cleared&&TYPES[o.type].cls!=='scenery');
+function laneFree(idx,yUp,yDown){
+  const fx=LANES_SAME[idx];const ego=EGO();
+  yUp=yUp??H*0.45;yDown=yDown??H*0.15;
+  return !activeObjs().some(o=>Math.abs(o.fx-fx)<0.062&&o.y>ego.y-yUp&&o.y<ego.y+yDown);
+}
+function leadObject(){
+  const ego=EGO();let best=null,bd=1e9;
+  for(const o of activeObjs()){
+    const d=ego.y-o.y;
+    if(d>0&&d<H*0.55&&Math.abs(o.fx*W-ego.x)<W*0.062&&d<bd){bd=d;best=o;}
+  }
+  return best;
+}
+function pickFreeLane(){
+  if(SIM.egoLane<2&&laneFree(SIM.egoLane+1))return SIM.egoLane+1;
+  if(SIM.egoLane>0&&laneFree(SIM.egoLane-1))return SIM.egoLane-1;
+  return -1;
+}
+
+/* ── PLAN + ACT: hierarchical decision machine ──
+   slow vehicle  -> overtake if a lane is free, else ACC-follow
+   cow/dog/ped   -> AEB stop, assess, creep past via free lane (never swerve at speed)
+   pothole       -> in-lane swerve
+   lane returns  -> only after full pass margin + shoulder check
+   nothing seen  -> nothing done (that's the sensor-gap lesson)          */
+function planAndAct(){
+  const ego=EGO();
+  const lead=leadObject();
+  const det=lead?fusedScore(lead):{score:0};
+  const dist=lead?ego.y-lead.y:1e9;
+  const meta=lead?TYPES[lead.type]:null;
+  SIM.decideT=Math.max(0,SIM.decideT-1);
+  SIM.holding=false;
+
+  switch(SIM.mode){
+    case 'cruise':
+      SIM.brake=false;SIM.speedTarget=1;SIM.blocked=false;
+      if(lead&&det.score>0.5&&dist<H*0.5){
+        if(meta.cls==='unpredictable'){
+          SIM.mode='stopping';SIM.brake=true;SIM.speedTarget=0;SIM.passTarget=lead;lead.stopT=0;
+        }else if(meta.cls==='static'){
+          SIM.mode='swerve';SIM.passTarget=lead;
+          const dir=(SIM.egoLane<2&&laneFree(SIM.egoLane+1,H*0.3,H*0.1))?1:-1;
+          SIM.egoTargetFx=LANES_SAME[SIM.egoLane]+dir*0.055;
+        }else if((lead.ownEff??lead.own)<0.9&&SIM.decideT===0){
+          const nl=pickFreeLane();
+          if(nl>=0){SIM.mode='overtake';SIM.passTarget=lead;SIM.targetLane=nl;SIM.egoTargetFx=LANES_SAME[nl];}
+          else SIM.mode='follow';
+          SIM.decideT=45;
+        }
+      }else if(SIM.egoLane!==HOME&&SIM.decideT===0){
+        /* keep-to-middle discipline: drift home when clear */
+        const step=SIM.egoLane>HOME?SIM.egoLane-1:SIM.egoLane+1;
+        if(laneFree(step,H*0.35,H*0.22)){SIM.targetLane=step;SIM.egoTargetFx=LANES_SAME[step];SIM.decideT=60;}
+        else SIM.holding=true;
+      }
+      break;
+
+    case 'follow':{
+      if(!lead||lead.cleared||det.score<=0.5||meta.cls!=='vehicle'){SIM.mode='cruise';break;}
+      SIM.brake=false;
+      const tgt=(lead.ownEff??lead.own)+(dist-H*0.24)/(H*0.6);
+      SIM.speedTarget=Math.max(0,Math.min(1,tgt));
+      if(SIM.decideT===0){
+        const nl=pickFreeLane();
+        if(nl>=0){SIM.mode='overtake';SIM.passTarget=lead;SIM.targetLane=nl;SIM.egoTargetFx=LANES_SAME[nl];}
+        SIM.decideT=45;
+      }
+      break;}
+
+    case 'overtake':{
+      SIM.brake=false;SIM.speedTarget=1;
+      const pt=SIM.passTarget;
+      const arrived=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.012;
+      if(arrived)SIM.egoLane=SIM.targetLane;
+      const passed=!pt||pt.cleared||pt.y>ego.y+40;
+      if(arrived&&passed){SIM.mode='cruise';SIM.passTarget=null;SIM.decideT=30;}
+      break;}
+
+    case 'stopping':{
+      const pt=SIM.passTarget;
+      const gone=!pt||pt.cleared||ego.y-pt.y>H*0.6||Math.abs(pt.fx*W-ego.x)>=W*0.075;
+      if(gone){SIM.mode='cruise';SIM.brake=false;SIM.blocked=false;break;}
+      SIM.brake=true;SIM.speedTarget=0;
+      if(SIM.speed<0.05){
+        pt.stopT=(pt.stopT||0)+1;
+        if(pt.stopT>110){
+          const nl=pickFreeLane();
+          if(nl>=0){SIM.mode='creep';SIM.brake=false;SIM.blocked=false;SIM.targetLane=nl;SIM.egoTargetFx=LANES_SAME[nl];}
+          else{SIM.blocked=true;pt.stopT=80;}
+        }
+      }
+      break;}
+
+    case 'creep':{
+      const pt=SIM.passTarget;
+      const arrived=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.012;
+      SIM.speedTarget=arrived?0.6:0.3;
+      if(arrived)SIM.egoLane=SIM.targetLane;
+      const passed=!pt||pt.cleared||pt.y>ego.y+40;
+      if(arrived&&passed){SIM.mode='cruise';SIM.passTarget=null;SIM.decideT=30;}
+      break;}
+
+    case 'swerve':{
+      const pt=SIM.passTarget;
+      if(!pt||pt.cleared||pt.y>ego.y+30){
+        SIM.egoTargetFx=LANES_SAME[SIM.egoLane];
+        if(Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.012){SIM.mode='cruise';SIM.passTarget=null;}
+      }
+      break;}
+  }
+  /* ACT: actuators ease toward targets — brakes bite harder than throttle */
+  SIM.speed+=(SIM.speedTarget-SIM.speed)*(SIM.speedTarget<SIM.speed?0.07:0.02);
+  if(SIM.brake&&SIM.speed<0.02)SIM.speed=0;
+  SIM.egoFx+=(SIM.egoTargetFx-SIM.egoFx)*0.045;
+}
+
+/* ── traffic + world step ── */
+function stepWorld(){
+  planAndAct();
+  const ego=EGO();
+  for(const o of SIM.objects){
+    if(o.cleared){o.alpha=(o.alpha??1)-0.03;continue;}
+    const T=TYPES[o.type];
+    /* ambient car-following: never rear-end the vehicle (or ego) ahead */
+    if(o.dirn===1&&T.cls==='vehicle'){
+      let aheadOwn=null;
+      for(const p of SIM.objects){
+        if(p!==o&&!p.cleared&&p.dirn===1&&TYPES[p.type].cls==='vehicle'&&Math.abs(p.fx-o.fx)<0.062){
+          const d=o.y-p.y;
+          if(d>0&&d<H*0.2)aheadOwn=Math.min(aheadOwn??1,p.ownEff??p.own);
+        }
+      }
+      const dEgo=o.y-ego.y;
+      if(Math.abs(o.fx*W-ego.x)<W*0.062&&dEgo>0&&dEgo<H*0.2)aheadOwn=Math.min(aheadOwn??1,SIM.speed);
+      o.ownEff=aheadOwn!=null?Math.min(o.own,aheadOwn):o.own;
+    }else o.ownEff=o.own||0;
+    /* relative motion */
+    let vy;
+    if(o.dirn===1)vy=ROADV*(SIM.speed-o.ownEff);
+    else if(o.dirn===-1)vy=ROADV*(SIM.speed+o.own);
+    else vy=ROADV*SIM.speed;
+    o.y+=vy;
+    if(T.weave){o.wt=(o.wt||0)+0.04;o.fx+=Math.sin(o.wt)*0.0009;}
+    if(o.walker&&o.vxf){
+      o.fx+=o.vxf;
+      if((o.vxf>0&&o.fx>0.462)||(o.vxf<0&&o.fx<0.055)){o.cleared=true;o.alpha=1;}
+    }
+    if(o.wander&&o.vxf){
+      o.fx+=o.vxf;
+      if(Math.abs(o.fx-o.wanderTo)<0.01)o.vxf=0;
+    }
+    /* collision with ego — only bites if the stack never confirmed the object */
+    const d=ego.y-o.y;
+    if(T.cls!=='scenery'&&Math.abs(d)<T.size*0.7&&Math.abs(o.fx*W-ego.x)<Math.min(24,W*0.05)){
+      if(fusedScore(o).score<=0.5)SIM.collisionT=46;
+      o.cleared=true;o.alpha=1;
+    }
+  }
+  SIM.objects=SIM.objects.filter(o=>o.y>-170&&o.y<H+150&&(o.alpha??1)>0);
+  maintainTraffic();
+  ambientEvents();
+}
+
+function spawnVehicle(dirn,fromBottom,y0){
+  const lanes=dirn===1?LANES_SAME:LANES_ONC;
+  const li=Math.floor(Math.random()*3);
+  const pool=['car','car','suv','bus','truck','bike','rickshaw'];
+  const type=pool[Math.floor(Math.random()*pool.length)];
+  const T=TYPES[type];
+  const own=fromBottom?1.15+Math.random()*0.25:T.own[0]+Math.random()*(T.own[1]-T.own[0]);
+  const y=y0??(fromBottom?H+70:-70);
+  const fx=lanes[li]+(Math.random()*0.02-0.01);
+  if(SIM.objects.some(o=>!o.cleared&&Math.abs(o.fx-fx)<0.062&&Math.abs(o.y-y)<H*0.28))return;
+  const ego=EGO();
+  if(Math.abs(fx*W-ego.x)<W*0.062&&Math.abs(y-ego.y)<H*0.3)return;
+  SIM.objects.push({type,fx,y,own,dirn,alpha:1});
+}
+function spawnScenery(y0){
+  const left=Math.random()<0.5;
+  const pool=['tree','tree','tree','tree','stall','cow','pedestrian','dog'];
+  const type=pool[Math.floor(Math.random()*pool.length)];
+  SIM.objects.push({type,fx:(left?0.035:0.958)+(Math.random()*0.018-0.009),y:y0??(-40-Math.random()*80),own:0,dirn:0,alpha:1,scenery:true});
+}
+function maintainTraffic(){
+  const same=SIM.objects.filter(o=>o.dirn===1&&!o.cleared).length;
+  const onc=SIM.objects.filter(o=>o.dirn===-1&&!o.cleared).length;
+  const scen=SIM.objects.filter(o=>o.scenery&&!o.cleared).length;
+  if(same<5&&Math.random()<0.035)spawnVehicle(1,Math.random()<0.22);
+  if(onc<4&&Math.random()<0.05)spawnVehicle(-1,false);
+  if(scen<9&&Math.random()<0.12)spawnScenery();
+}
+function ambientEvents(){
+  if(SIM.t<SIM.nextEvent)return;
+  SIM.nextEvent=SIM.t+700+Math.random()*900;
+  const ego=EGO();const r=Math.random();
+  if(r<0.45){ /* pedestrian darts across */
+    const fromLeft=Math.random()<0.7;
+    SIM.objects.push({type:'pedestrian',fx:fromLeft?0.06:0.455,y:ego.y-H*(0.5+Math.random()*0.15),own:0,dirn:0,alpha:1,walker:true,vxf:fromLeft?0.0015:-0.0015});
+  }else if(r<0.75){ /* cow wanders into a lane and settles */
+    SIM.objects.push({type:'cow',fx:0.05,y:ego.y-H*(0.45+Math.random()*0.15),own:0,dirn:0,alpha:1,wander:true,wanderTo:LANES_SAME[Math.floor(Math.random()*3)],vxf:0.0011});
+  }else{ /* dog dash */
+    SIM.objects.push({type:'dog',fx:0.05,y:ego.y-H*0.4,own:0,dirn:0,alpha:1,walker:true,vxf:0.003});
+  }
+}
+function spawnHazard(kind){
+  const ego=EGO();const y=ego.y-H*0.55;
+  if(kind==='pedestrian'){SIM.objects.push({type:'pedestrian',fx:0.06,y:ego.y-H*0.42,own:0,dirn:0,alpha:1,walker:true,vxf:0.0018});return;}
+  if(kind==='cow'||kind==='dog'){SIM.objects.push({type:kind,fx:SIM.egoFx+(Math.random()*0.02-0.01),y,own:0,dirn:0,alpha:1});return;}
+  if(kind==='pothole'){SIM.objects.push({type:'pothole',fx:SIM.egoFx,y,own:0,dirn:0,alpha:1});return;}
+  SIM.objects.push({type:kind,fx:SIM.egoFx,y,own:kind==='truck'?0.3:0.25,dirn:1,alpha:1});
+}
+
+/* ── rendering ── */
 function drawRoad(){
-  // background per condition
   let sky='#0b0b14';
   if(SIM.condition==='night')sky='#050508';
   if(SIM.condition==='monsoon')sky='#0c1016';
   ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
-  // road body
-  const roadL=W*0.24,roadR=W*0.76;
+  /* verges */
+  ctx.fillStyle=SIM.condition==='night'?'#07090a':'#0b100c';
+  ctx.fillRect(0,0,W*0.08,H);ctx.fillRect(W*0.92,0,W*0.08,H);
+  /* carriageways */
   ctx.fillStyle=SIM.condition==='night'?'#101018':'#14141f';
-  ctx.fillRect(roadL,0,roadR-roadL,H);
-  // edges
-  ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(roadL,0);ctx.lineTo(roadL,H);ctx.moveTo(roadR,0);ctx.lineTo(roadR,H);ctx.stroke();
-  // faded / broken lane markings (India: intermittent!)
+  ctx.fillRect(W*0.08,0,W*0.39,H);
+  ctx.fillRect(W*0.53,0,W*0.39,H);
+  /* median */
+  ctx.fillStyle='#0a0a10';ctx.fillRect(W*0.47,0,W*0.06,H);
+  ctx.strokeStyle='rgba(251,191,36,.45)';ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(W*0.476,0);ctx.lineTo(W*0.476,H);
+  ctx.moveTo(W*0.524,0);ctx.lineTo(W*0.524,H);
+  ctx.stroke();
+  /* edge lines */
+  ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=2;
+  ctx.beginPath();
+  for(const fx of [0.08,0.47,0.53,0.92]){ctx.moveTo(W*fx,0);ctx.lineTo(W*fx,H);}
+  ctx.stroke();
+  /* lane dashes (faded, India-style) */
   const scroll=SIM.scrollPos%56;
-  ctx.strokeStyle=SIM.condition==='night'?'rgba(255,255,255,.12)':'rgba(255,255,255,.3)';
-  ctx.lineWidth=3;ctx.setLineDash([22,34]);ctx.lineDashOffset=-scroll;
-  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
+  ctx.strokeStyle=SIM.condition==='night'?'rgba(255,255,255,.10)':'rgba(255,255,255,.26)';
+  ctx.lineWidth=2.5;ctx.setLineDash([20,36]);ctx.lineDashOffset=-scroll;
+  ctx.beginPath();
+  for(const fx of [0.21,0.34,0.66,0.79]){ctx.moveTo(W*fx,0);ctx.lineTo(W*fx,H);}
+  ctx.stroke();
   ctx.setLineDash([]);
-  // monsoon rain streaks
   if(SIM.condition==='monsoon'){
     ctx.strokeStyle='rgba(120,160,220,.14)';ctx.lineWidth=1;
-    for(let i=0;i<40;i++){
+    for(let i=0;i<44;i++){
       const rx=(i*97+SIM.t*7)%W;const ry=(i*211+SIM.t*13)%H;
       ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx-3,ry+14);ctx.stroke();
     }
   }
-  // night vignette
   if(SIM.condition==='night'){
-    const v=ctx.createRadialGradient(W/2,H*0.86,40,W/2,H*0.86,H*0.75);
+    const ego=EGO();
+    const v=ctx.createRadialGradient(ego.x,ego.y,40,ego.x,ego.y,H*0.75);
     v.addColorStop(0,'rgba(255,244,200,.10)');v.addColorStop(1,'rgba(0,0,0,.55)');
     ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
   }
 }
-
 function drawCones(){
   const ego=EGO();
   for(const key of Object.keys(SENSOR_META)){
     if(!SIM.sensors[key])continue;
     const s=SENSOR_META[key];
     const r=s.range*H;
-    ctx.save();ctx.globalAlpha=0.15;
+    ctx.save();ctx.globalAlpha=0.13;
     ctx.fillStyle=s.color;
     ctx.beginPath();
-    if(s.fovDeg>=360){ctx.arc(ego.x,ego.y,r,0,Math.PI*2);}
+    if(s.fovDeg>=360)ctx.arc(ego.x,ego.y,r,0,Math.PI*2);
     else{
       const half=s.fovDeg/2*Math.PI/180;
       ctx.moveTo(ego.x,ego.y);
@@ -429,19 +663,48 @@ function drawCones(){
       ctx.closePath();
     }
     ctx.fill();
-    ctx.globalAlpha=0.5;ctx.strokeStyle=s.color;ctx.lineWidth=1;ctx.stroke();
+    ctx.globalAlpha=0.45;ctx.strokeStyle=s.color;ctx.lineWidth=1;ctx.stroke();
     ctx.restore();
   }
-  // sweep pulse on radar
   if(SIM.sensors.radar){
     const p=(SIM.t%90)/90;
     ctx.save();ctx.globalAlpha=0.25*(1-p);
     ctx.strokeStyle='#d946ef';ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(ego.x,ego.y,p*SENSOR_META.radar.range*H,Math.PI*1.44,Math.PI*1.56);ctx.stroke();
+    ctx.beginPath();ctx.arc(EGO().x,EGO().y,p*SENSOR_META.radar.range*H,Math.PI*1.44,Math.PI*1.56);ctx.stroke();
     ctx.restore();
   }
 }
-
+function drawObjects(){
+  const ego=EGO();
+  for(const o of SIM.objects){
+    const T=TYPES[o.type];
+    const x=o.fx*W;
+    ctx.save();
+    ctx.globalAlpha=(o.alpha??1)*(SIM.condition==='night'?(T.cls==='scenery'?0.45:0.8):1);
+    ctx.translate(x,o.y);
+    if(T.cls==='vehicle')ctx.rotate(o.dirn===-1?-Math.PI/2:Math.PI/2);
+    ctx.font=T.size+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(T.emoji,0,0);
+    ctx.restore();
+    if(SIM.condition==='night'&&o.dirn===-1&&!o.cleared){
+      const g=ctx.createRadialGradient(x,o.y+T.size,2,x,o.y+T.size,40);
+      g.addColorStop(0,'rgba(255,240,190,.30)');g.addColorStop(1,'rgba(255,240,190,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,o.y+T.size,40,0,Math.PI*2);ctx.fill();
+    }
+    if(o.cleared||T.cls==='scenery')continue;
+    /* detection rings: green=confirmed, amber=uncertain, red dashes only for unseen threats in our path */
+    const d=ego.y-o.y;
+    const f=fusedScore(o);
+    const inPath=Math.abs(x-ego.x)<W*0.062&&d>0&&d<H*0.5;
+    if(f.score>0.5)ctx.strokeStyle='rgba(74,222,128,.85)';
+    else if(f.score>0.22)ctx.strokeStyle='rgba(251,191,36,.85)';
+    else if(inPath)ctx.strokeStyle='rgba(248,113,113,.85)';
+    else continue;
+    ctx.lineWidth=1.2;ctx.setLineDash(f.score>0.5?[]:[4,4]);
+    ctx.strokeRect(x-T.size*0.7,o.y-T.size*0.7,T.size*1.4,T.size*1.4);
+    ctx.setLineDash([]);
+  }
+}
 function drawEgo(){
   const ego=EGO();
   const lean=Math.max(-0.25,Math.min(0.25,(SIM.egoTargetFx-SIM.egoFx)*1.4));
@@ -449,120 +712,38 @@ function drawEgo(){
   ctx.translate(ego.x,ego.y);ctx.rotate(lean);
   ctx.shadowColor='#22d3ee';ctx.shadowBlur=14;
   ctx.fillStyle='#e8e6f2';
-  const w=22,h=38;
+  const w=Math.min(22,W*0.05),h=w*1.72;
   ctx.beginPath();
-  ctx.roundRect?ctx.roundRect(-w/2,-h/2,w,h,7):ctx.rect(-w/2,-h/2,w,h);
+  ctx.roundRect?ctx.roundRect(-w/2,-h/2,w,h,6):ctx.rect(-w/2,-h/2,w,h);
   ctx.fill();
   ctx.shadowBlur=0;
-  ctx.fillStyle='#08080f';ctx.fillRect(-w/2+4,-h/2+7,w-8,9);
-  if(SIM.maneuver&&Math.floor(SIM.t/14)%2===0){
+  ctx.fillStyle='#08080f';ctx.fillRect(-w/2+3,-h/2+6,w-6,h*0.24);
+  if(Math.abs(SIM.egoTargetFx-SIM.egoFx)>0.006&&Math.floor(SIM.t/14)%2===0){
     const side=SIM.egoTargetFx>=SIM.egoFx?1:-1;
-    ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(side*(w/2),-h/2+5,3.5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(side*(w/2),-h/2+4,3.2,0,Math.PI*2);ctx.fill();
   }
   ctx.restore();
 }
-/* ── PLAN + ACT: the decision machine ──
-   moving vehicle (truck/rickshaw) -> indicate + overtake at speed
-   pothole                         -> in-lane swerve
-   cow / pedestrian                -> AEB stop, assess, then creep past slowly
-   (never swerve at speed for unpredictable actors) */
-function planAndAct(){
-  const ego=EGO();
-  const hz=SIM.hazards.find(h=>!h.cleared);
-  const fused=hz?fusedScore(hz):{score:0};
-  const dist=hz?ego.y-hz.y:1e9;
-  const inPath=hz?Math.abs(hz.x-ego.x)<W*0.13:false;
-  if(!SIM.maneuver){
-    SIM.brake=false;SIM.speedTarget=1;SIM.holding=false;
-    if(hz&&fused.score>0.5&&inPath&&dist<H*0.5){
-      const passFx=hz.x>W*0.5?LANE_L:LANE_R;
-      if(hz.type==='truck'||hz.type==='rickshaw'){
-        SIM.maneuver='overtake';SIM.phase='out';SIM.egoTargetFx=passFx;
-      }else if(hz.type==='pothole'){
-        SIM.maneuver='swerve';SIM.phase='out';
-        SIM.egoTargetFx=SIM.egoFx+(passFx>SIM.egoFx?0.12:-0.12);
-      }else{
-        SIM.brake=true;SIM.speedTarget=0;
-        if(SIM.speed<0.05){hz.stopT=(hz.stopT||0)+1;
-          if(hz.stopT>110){SIM.maneuver='creep';SIM.phase='out';SIM.egoTargetFx=passFx;SIM.brake=false;}
-        }
-      }
-    }
-  }else{
-    if(SIM.phase==='out'){
-      if(SIM.maneuver==='creep')SIM.speedTarget=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.02?0.6:0.3;
-      const arrived=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.012;
-      const passed=!hz||hz.y>ego.y+40; /* fully behind, with margin */
-      if(arrived&&passed){SIM.passFx=SIM.egoTargetFx;SIM.phase='return';SIM.speedTarget=1;}
-    }else if(SIM.phase==='return'){
-      /* SHOULDER CHECK: is anything still occupying the home lane beside/behind us? */
-      const blocker=SIM.hazards.find(h=>!h.cleared&&Math.abs(h.x-W*LANE_L)<W*0.13&&h.y>ego.y-70&&h.y<ego.y+40);
-      if(blocker){SIM.holding=true;SIM.egoTargetFx=SIM.passFx;}
-      else{
-        SIM.holding=false;SIM.egoTargetFx=LANE_L;
-        if(Math.abs(SIM.egoFx-LANE_L)<0.012){SIM.maneuver=null;SIM.phase=null;}
-      }
-    }
-  }
-  /* ACT: actuators ease toward targets — brakes bite harder than throttle */
-  SIM.speed+=(SIM.speedTarget-SIM.speed)*(SIM.speedTarget<SIM.speed?0.07:0.02);
-  if(SIM.brake&&SIM.speed<0.02)SIM.speed=0;
-  SIM.egoFx+=(SIM.egoTargetFx-SIM.egoFx)*0.045;
-}
-function stepHazards(){
-  planAndAct();
-  const ego=EGO();
-  for(const h of SIM.hazards){
-    if(h.cleared){h.alpha=(h.alpha??1)-0.03;continue;}
-    const sp=Math.max(SIM.speed,0);
-    h.y+=h.vy*sp;
-    if(HAZARD_META[h.type].lane==='weave'){h.weaveT+=0.04*Math.max(sp,.2);h.x+=Math.sin(h.weaveT)*1.4*sp;}
-    else h.x+=h.vx*(h.type==='pedestrian'?1:sp); /* pedestrians keep walking even when ego stops */
-    const dist=ego.y-h.y;
-    if(dist<HAZARD_META[h.type].size*0.8&&Math.abs(h.x-ego.x)<22){
-      if(fusedScore(h).score<=0.5)SIM.collisionT=46;
-      h.cleared=true;h.alpha=1;
-    }
-  }
-  SIM.hazards=SIM.hazards.filter(h=>h.y<H+40&&(h.alpha??1)>0);
-}
-function drawHazards(){
-  for(const hz of SIM.hazards){
-    const m=HAZARD_META[hz.type];
-    // dim hazards at night (what the HUMAN sees is also degraded)
-    ctx.save();
-    ctx.globalAlpha=(hz.alpha??1)*(SIM.condition==='night'?0.75:1);
-    ctx.font=m.size+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(m.emoji,hz.x,hz.y);
-    ctx.restore();
-    if(hz.cleared)continue;
-    // detection ring
-    const fused=fusedScore(hz);
-    if(fused.score>0.5){ctx.strokeStyle='rgba(74,222,128,.9)';}
-    else if(fused.score>0.22){ctx.strokeStyle='rgba(251,191,36,.9)';}
-    else {ctx.strokeStyle='rgba(248,113,113,.9)';}
-    ctx.lineWidth=1.5;ctx.setLineDash(fused.score>0.5?[]:[4,4]);
-    ctx.strokeRect(hz.x-m.size*0.75,hz.y-m.size*0.75,m.size*1.5,m.size*1.5);
-    ctx.setLineDash([]);
-    if(fused.score>0.5&&fused.by){
-      ctx.font='10px "DM Mono",monospace';ctx.fillStyle=SENSOR_META[fused.by].color;
-      ctx.fillText(SENSOR_META[fused.by].label.toUpperCase(),hz.x,hz.y-m.size);
-    }
-  }
+function drawCollisionFlash(){
+  if(SIM.collisionT<=0)return;
+  SIM.collisionT--;
+  ctx.fillStyle='rgba(248,113,113,'+(0.35*SIM.collisionT/46)+')';
+  ctx.fillRect(0,0,W,H);
 }
 
-function fusedScore(hz){
-  let best=0,by=null;
-  for(const key of Object.keys(SENSOR_META)){
-    const r=sensorSees(key,hz);
-    if(r.score>best){best=r.score;by=key;}
+/* ── HUD ── */
+function focusObject(){
+  const lead=leadObject();if(lead)return lead;
+  const ego=EGO();let best=null,bd=1e9;
+  for(const o of activeObjs()){
+    const d=ego.y-o.y;
+    if(d>0&&d<H*0.6&&o.fx<0.5&&d<bd){bd=d;best=o;}
   }
-  return {score:best,by};
+  return best;
 }
-
 function updateReadout(){
   const box=document.getElementById('readout');
-  const hz=SIM.hazards.find(h=>!h.cleared);
+  const hz=focusObject();
   let html='';
   for(const key of Object.keys(SENSOR_META)){
     const s=SENSOR_META[key];
@@ -582,42 +763,45 @@ function updateReadout(){
   }
   box.innerHTML=html;
 }
-
 function updateVerdict(){
   const v=document.getElementById('verdict');
-  const ego=EGO();
-  const hz=SIM.hazards.find(h=>!h.cleared);
-  if(SIM.collisionT>0){v.className='verdict danger';v.textContent='💥 COLLISION · SENSOR GAP';return;}
-  if(SIM.holding){v.className='verdict warn';v.textContent='👁 SHOULDER CHECK · HOLDING LANE';return;}
-  if(SIM.maneuver==='overtake'){v.className='verdict ok';v.textContent=SIM.phase==='out'?'↷ INDICATING · OVERTAKING':'↩ RETURNING TO LANE';return;}
-  if(SIM.maneuver==='swerve'){v.className='verdict ok';v.textContent=SIM.phase==='out'?'⤳ SWERVING · POTHOLE':'↩ RETURNING TO LANE';return;}
-  if(SIM.maneuver==='creep'){v.className='verdict warn';v.textContent=SIM.phase==='out'?'⤳ CREEPING PAST HAZARD':'↩ REJOINING LANE';return;}
-  if(!hz){v.className='verdict ok';v.textContent=SIM.speed<0.9?'RESUMING · ROAD CLEAR':'ROAD CLEAR';return;}
-  const fused=fusedScore(hz);
-  const dist=ego.y-hz.y;
-  if(SIM.brake&&SIM.speed<0.05){v.className='verdict warn';v.textContent='⛔ AEB · STOPPED — ASSESSING PATH';}
-  else if(SIM.brake){v.className='verdict warn';v.textContent='🛑 AEB ENGAGED · BRAKING';}
-  else if(fused.score>0.5){v.className='verdict ok';v.textContent='DETECTED · TRACKING · '+(fused.by?SENSOR_META[fused.by].label.toUpperCase():'');}
-  else if(dist<H*0.35){v.className='verdict danger';v.textContent='⚠ UNDETECTED · COLLISION RISK';}
-  else{v.className='verdict warn';v.textContent='OBJECT AHEAD · NOT YET CONFIRMED';}
+  const set=(cls,txt)=>{v.className='verdict '+cls;v.textContent=txt;};
+  if(SIM.collisionT>0)return set('danger','💥 COLLISION · SENSOR GAP');
+  if(SIM.holding)return set('warn','👁 SHOULDER CHECK · HOLDING LANE');
+  switch(SIM.mode){
+    case 'overtake':return set('ok','↷ INDICATING · OVERTAKING');
+    case 'creep':return set('warn','⤳ CREEPING PAST HAZARD');
+    case 'swerve':return set('ok','⤳ SWERVING · POTHOLE');
+    case 'follow':return set('ok','⇥ ACC · FOLLOWING TRAFFIC');
+    case 'stopping':
+      if(SIM.speed<0.05)return set('warn',SIM.blocked?'⛔ PATH BLOCKED · WAITING':'⛔ AEB · STOPPED — ASSESSING PATH');
+      return set('warn','🛑 AEB ENGAGED · BRAKING');
+  }
+  const lead=leadObject();
+  if(!lead)return set('ok',SIM.speed<0.9?'RESUMING · ROAD CLEAR':'CRUISING · LANE '+(SIM.egoLane+1));
+  const f=fusedScore(lead);
+  const d=EGO().y-lead.y;
+  if(f.score>0.5)return set('ok','DETECTED · TRACKING · '+(f.by?SENSOR_META[f.by].label.toUpperCase():''));
+  if(d<H*0.35)return set('danger','⚠ UNDETECTED · COLLISION RISK');
+  set('warn','OBJECT AHEAD · NOT YET CONFIRMED');
 }
+
+/* ── seed + loop ── */
+for(let k=0;k<3;k++)spawnVehicle(1,false,H*0.1+k*H*0.24);
+for(let k=0;k<3;k++)spawnVehicle(-1,false,H*0.15+k*H*0.3);
+for(let k=0;k<7;k++)spawnScenery(Math.random()*H);
+
 let frameCount=0;
-function drawCollisionFlash(){
-  if(SIM.collisionT<=0)return;
-  SIM.collisionT--;
-  ctx.fillStyle='rgba(248,113,113,'+(0.35*SIM.collisionT/46)+')';
-  ctx.fillRect(0,0,W,H);
-}
 function loop(){
   SIM.t++;
   SIM.scrollPos+=1.6*SIM.speed;
-  drawRoad();drawCones();stepHazards();drawHazards();drawEgo();drawCollisionFlash();
+  drawRoad();drawCones();stepWorld();drawObjects();drawEgo();drawCollisionFlash();
   if(++frameCount%12===0){updateReadout();updateVerdict();}
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
-/* controls */
+/* ── controls ── */
 document.querySelectorAll('[data-sensor]').forEach(b=>b.addEventListener('click',()=>{
   const k=b.dataset.sensor;SIM.sensors[k]=!SIM.sensors[k];b.classList.toggle('on',SIM.sensors[k]);
 }));
