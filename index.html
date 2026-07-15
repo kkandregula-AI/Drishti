@@ -128,6 +128,15 @@ section{padding:72px 0;border-top:1px solid rgba(255,255,255,.05)}
 .rc-label.needs{color:var(--green)}
 .rc-block p{font-size:.83rem;color:var(--muted);line-height:1.55}
 
+/* ── Sources ── */
+.src-list{margin-top:34px;border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);background:var(--ink-2);padding:10px 26px}
+.src-item{display:block;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.src-item:last-child{border-bottom:none}
+.src-name{font-size:.92rem;color:var(--text);font-weight:500}
+.src-name a{color:var(--cyan-soft);text-decoration:none;border-bottom:1px solid rgba(34,211,238,.3)}
+.src-what{font-size:.8rem;color:var(--muted);margin-top:3px}
+.src-note{font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.14em;color:var(--faint);text-transform:uppercase;margin-top:16px}
+
 /* ── Footer ── */
 footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.05);text-align:center}
 .attribution{font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.14em;color:var(--faint)}
@@ -291,6 +300,110 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
   </div>
 </section>
 
+<section id="lanecraft">
+  <div class="wrap">
+    <div class="eyebrow reveal">06 · Lane Craft</div>
+    <h2 class="reveal">How a machine changes lanes</h2>
+    <p class="lede reveal">A lane change is the most negotiated maneuver in driving — five distinct steps, each with its own failure mode. This is exactly the mechanism running in both simulators above.</p>
+    <div class="reality-grid reveal">
+      <div class="reality-card"><div class="reality-emoji">🧠</div><h3>1 · Decide</h3>
+        <div class="rc-block"><p>The planner needs a reason: a slower leader, a route exit, a merging lane. It weighs time gained against risk added — most candidate lane changes are rejected.</p></div>
+        <div class="rc-block"><div class="rc-label needs">In this simulator</div><p>Triggered only when the lead vehicle is meaningfully slower than cruise speed; otherwise the car simply follows.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">📏</div><h3>2 · Gap check</h3>
+        <div class="rc-block"><p>Side and rear-corner radars confirm a safe gap ahead <em>and</em> behind in the target lane — including fast vehicles still closing from behind.</p></div>
+        <div class="rc-block"><div class="rc-label needs">In this simulator</div><p>The target lane must be clear 45% of the view ahead and 30% behind, so an approaching overtaker vetoes the move.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">🟡</div><h3>3 · Indicate &amp; commit</h3>
+        <div class="rc-block"><p>Signal first. Predictability is a safety feature — other drivers cooperate with maneuvers they can anticipate.</p></div>
+        <div class="rc-block"><div class="rc-label needs">In this simulator</div><p>The amber indicator blinks on the turning side through every maneuver.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">🎯</div><h3>4 · Steer under supervision</h3>
+        <div class="rc-block"><p>A smooth lateral profile moves the car over — while an independent emergency-braking layer stays armed the entire time, ready to override the plan.</p></div>
+        <div class="rc-block"><div class="rc-label needs">In this simulator</div><p>The AEB supervisor runs every frame above the planner and can hard-brake mid-overtake.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">👁</div><h3>5 · Merge &amp; verify</h3>
+        <div class="rc-block"><p>Before returning to a lane, the car verifies the corridor beside and behind it is genuinely clear — and holds position if not. Returning early causes the classic blind-spot side-swipe.</p></div>
+        <div class="rc-block"><div class="rc-label needs">In this simulator</div><p>Watch for "SHOULDER CHECK · HOLDING LANE" — the car waits in the passing lane until home is clear.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="usa">
+  <div class="wrap">
+    <div class="eyebrow f reveal">07 · The Real World</div>
+    <h2 class="reveal">How driverless driving works in the USA today</h2>
+    <p class="lede reveal">The United States is the largest live laboratory for autonomy — three very different philosophies operating side by side. Facts verified July 2026; this industry moves monthly, so check the sources below.</p>
+    <div class="reality-grid reveal">
+      <div class="reality-card"><div class="reality-emoji">🚕</div><h3>Waymo — the geofenced L4 model</h3>
+        <div class="rc-block"><p>Fully driverless paid rides — nobody in the driver's seat — across more than a dozen US metros, from Phoenix and San Francisco to Dallas, Miami, Denver and Las Vegas, with 200+ million autonomous miles logged and a target of 20+ cities and a million rides a week by end of 2026. The recipe: LiDAR + radar + cameras, HD maps, and a strictly bounded operating domain — outside the geofence, the car simply won't drive.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">📷</div><h3>Tesla — the supervised L2 model</h3>
+        <div class="rc-block"><p>"Full Self-Driving (Supervised)" works on nearly any US road using cameras and neural networks only — no LiDAR, no HD maps — but the human remains the legal driver, monitored by an in-cabin camera. Its separate Robotaxi service, launched in Austin in June 2025 and since extended to Dallas and Houston, began with onboard safety monitors that are gradually being removed. Two bets: scale vs. certainty.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">🛸</div><h3>Purpose-built &amp; freight</h3>
+        <div class="rc-block"><p>Amazon's Zoox runs purpose-built pods — no steering wheel, no pedals, riders facing each other — publicly on the Las Vegas Strip since September 2025 and in San Francisco, with Austin and Miami next. Aurora operates driverless heavy trucks on Texas freight corridors — a friendlier domain than city chaos: mapped, structured, repetitive.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">⚖️</div><h3>The rulebook</h3>
+        <div class="rc-block"><p>There is no single US federal self-driving law. NHTSA oversees vehicle safety and mandates crash reporting for automated systems, while each state issues its own permits — California requires DMV permits plus CPUC approval for paid rides, and Texas began requiring state authorization for commercial driverless operation in 2026. Every incident is logged, investigated, and public.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="responsible">
+  <div class="wrap">
+    <div class="eyebrow reveal">08 · Responsible AI</div>
+    <h2 class="reveal">First, do no harm</h2>
+    <p class="lede reveal">An autonomous system inherits the ethics of its designers. These principles are not add-ons — they are wired into the decision machine running above, and you can watch every one of them fire.</p>
+    <div class="reality-grid reveal">
+      <div class="reality-card"><div class="reality-emoji">🛡</div><h3>Protect life above all</h3>
+        <div class="rc-block"><p>The harm hierarchy is absolute: people first, then animals, then property, then the vehicle, then the schedule. Arrival time is never traded against a living thing.</p></div>
+        <div class="rc-block"><div class="rc-label needs">Live in the sim</div><p>The car full-stops for a cow or a dog even where traffic law alone wouldn't demand it.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">🕊</div><h3>Never chase, never pressure</h3>
+        <div class="rc-block"><p>An AV must never use motion as a threat — no tailgating, no nudging pedestrians, no forcing gaps. Patience is a safety behaviour, not a weakness.</p></div>
+        <div class="rc-block"><div class="rc-label needs">Live in the sim</div><p>Blocked on all sides, the car waits — "PATH BLOCKED · WAITING" — until the hazard moves of its own accord.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">🌧</div><h3>Degrade gracefully</h3>
+        <div class="rc-block"><p>When conditions worsen, a responsible system slows down, widens gaps, weights fusion toward weather-proof sensors — and if it can no longer guarantee safety, it executes a Minimal Risk Condition: pull over, stop, ask for help.</p></div>
+        <div class="rc-block"><div class="rc-label needs">Live in the sim</div><p>Switch to Monsoon or Night: cruise speed caps at 78% and the ACC follow gap stretches — "CRUISING · WEATHER CAUTION".</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">⛑</div><h3>Redundant guardianship</h3>
+        <div class="rc-block"><p>Safety must not depend on the planner being right. An independent AEB supervisor watches every frame and can override any decision — even a lane change already in progress.</p></div>
+        <div class="rc-block"><div class="rc-label needs">Live in the sim</div><p>"🛑 AEB SUPERVISOR · HARD BRAKE" fires above whatever the planner was doing.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">🔍</div><h3>Honest limits</h3>
+        <div class="rc-block"><p>A responsible system knows — and declares — what it cannot see. Overclaiming capability is itself a harm; it teaches humans to trust a blind spot.</p></div>
+        <div class="rc-block"><div class="rc-label needs">Live in the sim</div><p>The Real vs Simulated strip, per-sensor MISSED readouts, and honest "SENSOR GAP" collisions instead of magical saves.</p></div>
+      </div>
+      <div class="reality-card"><div class="reality-emoji">🤝</div><h3>Human authority</h3>
+        <div class="rc-block"><p>Below Level 3 the human's input always wins, instantly. And at every level, decisions must be loggable, auditable and explainable after the fact — a black box that harms and cannot explain is unacceptable.</p></div>
+        <div class="rc-block"><div class="rc-label needs">Live in the sim</div><p>The verdict pill narrates every decision in plain language — a tiny model of explainability.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <div class="eyebrow f reveal">09 · Sources &amp; Further Reading</div>
+    <h2 class="reveal">Check everything</h2>
+    <p class="lede reveal">Good education cites its sources — and honest limits (Principle 5 above) apply to this lab too. Here is where the facts in DRISHTI come from, and where to verify them as the industry moves.</p>
+    <div class="src-list reveal">
+      <div class="src-item"><div class="src-name"><a href="https://www.sae.org/standards/content/j3016_202104/" target="_blank" rel="noopener">SAE J3016 — Levels of Driving Automation</a></div><div class="src-what">The official definition behind the Level 0–5 ladder in Section 04.</div></div>
+      <div class="src-item"><div class="src-name"><a href="https://www.nhtsa.gov/vehicle-safety/automated-vehicles-safety" target="_blank" rel="noopener">NHTSA — Automated Vehicle Safety</a></div><div class="src-what">US federal oversight, the Standing General Order crash-reporting mandate, and AV incident data.</div></div>
+      <div class="src-item"><div class="src-name"><a href="https://waymo.com/safety/" target="_blank" rel="noopener">Waymo Safety Hub &amp; Blog</a></div><div class="src-what">Operating cities, 200M+ autonomous-mile safety data, and expansion announcements cited in Section 07.</div></div>
+      <div class="src-item"><div class="src-name"><a href="https://www.tesla.com/support/autopilot" target="_blank" rel="noopener">Tesla — Autopilot &amp; Full Self-Driving (Supervised)</a></div><div class="src-what">Capability and driver-responsibility definitions for the supervised L2 model.</div></div>
+      <div class="src-item"><div class="src-name"><a href="https://zoox.com" target="_blank" rel="noopener">Zoox</a> · <a href="https://aurora.tech" target="_blank" rel="noopener">Aurora</a></div><div class="src-what">Purpose-built robotaxi pods (Las Vegas, San Francisco) and driverless freight trucking on Texas corridors.</div></div>
+      <div class="src-item"><div class="src-name"><a href="https://www.dmv.ca.gov/portal/vehicle-industry-services/autonomous-vehicles/" target="_blank" rel="noopener">California DMV — Autonomous Vehicles Program</a></div><div class="src-what">The state permit system referenced in "The rulebook", including public disengagement and collision reports.</div></div>
+      <div class="src-item"><div class="src-name"><a href="https://morth.nic.in" target="_blank" rel="noopener">Ministry of Road Transport &amp; Highways (MoRTH), India</a></div><div class="src-what">Indian vehicle safety regulation and the Bharat NCAP context behind the India lens in Sections 04–05.</div></div>
+      <div class="src-note">Facts verified July 2026 · Sensor behaviour in the simulators is a simplified teaching model — see the "Simulated" label on each lab</div>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="wrap">
     <div class="attribution">Designed & Architected by <b>Krishnamurthy Kandregula</b> · Made by Claude</div>
@@ -446,8 +559,8 @@ function createSim(CFG){
     return best;
   }
   function pickFreeLane(){
-    if(SIM.egoLane<LANES.length-1&&laneFree(SIM.egoLane+1))return SIM.egoLane+1;
-    if(SIM.egoLane>0&&laneFree(SIM.egoLane-1))return SIM.egoLane-1;
+    if(SIM.egoLane<LANES.length-1&&laneFree(SIM.egoLane+1,H*0.45,H*0.3))return SIM.egoLane+1;
+    if(SIM.egoLane>0&&laneFree(SIM.egoLane-1,H*0.45,H*0.3))return SIM.egoLane-1;
     return -1;
   }
 
@@ -475,11 +588,10 @@ function createSim(CFG){
             SIM.mode='swerve';SIM.passTarget=lead;
             const dir=(SIM.egoLane<LANES.length-1&&laneFree(SIM.egoLane+1,H*0.3,H*0.1))?1:-1;
             SIM.egoTargetFx=LANES[SIM.egoLane]+dir*SWERVE;
-          }else if((lead.ownEff??lead.own)<0.9&&SIM.decideT===0){
-            const nl=pickFreeLane();
-            if(nl>=0){SIM.mode='overtake';SIM.passTarget=lead;SIM.targetLane=nl;SIM.egoTargetFx=LANES[nl];}
-            else SIM.mode='follow';
-            SIM.decideT=45;
+          }else if((lead.ownEff??lead.own)<0.9){
+            const nl=SIM.decideT===0?pickFreeLane():-1;
+            if(nl>=0){SIM.mode='overtake';SIM.passTarget=lead;SIM.targetLane=nl;SIM.egoTargetFx=LANES[nl];SIM.decideT=45;}
+            else{SIM.mode='follow';if(SIM.decideT===0)SIM.decideT=45;}
           }
         }else if(SIM.egoLane!==HOME&&SIM.decideT===0&&Math.abs(SIM.egoFx-LANES[SIM.egoLane])<0.02){
           const step=SIM.egoLane>HOME?SIM.egoLane-1:SIM.egoLane+1;
@@ -490,7 +602,8 @@ function createSim(CFG){
       case 'follow':{
         if(!lead||lead.cleared||det.score<=0.5||meta.cls!=='vehicle'){SIM.mode='cruise';break;}
         SIM.brake=false;
-        const tgt=(lead.ownEff??lead.own)+(dist-H*0.24)/(H*0.6);
+        const gap=H*(SIM.condition==='clear'?0.24:0.3); /* responsible-AI doctrine: longer gaps in bad weather */
+        const tgt=(lead.ownEff??lead.own)+(dist-gap)/(H*0.6);
         SIM.speedTarget=Math.max(0,Math.min(1,tgt));
         if(SIM.decideT===0){
           const nl=pickFreeLane();
@@ -536,6 +649,17 @@ function createSim(CFG){
         }
         break;}
     }
+    /* ── SAFETY SUPERVISOR: independent of the planner, runs every frame ──
+       1. weather doctrine: cap cruise speed in monsoon & night
+       2. guardian AEB: any confirmed object closing hard in-path -> hard brake,
+          overriding whatever the planner decided (even mid-overtake) */
+    SIM.cruiseCap=SIM.condition==='clear'?1:0.78;
+    SIM.speedTarget=Math.min(SIM.speedTarget,SIM.cruiseCap);
+    SIM.aeb=false;
+    if(lead&&det.score>0.5&&meta.cls!=='static'&&dist<H*0.2){
+      const leadFwd=lead.dirn===1?(lead.ownEff??lead.own):0;
+      if(leadFwd<SIM.speed-0.03){SIM.brake=true;SIM.speedTarget=0;SIM.aeb=true;}
+    }
     SIM.speed+=(SIM.speedTarget-SIM.speed)*(SIM.speedTarget<SIM.speed?0.07:0.02);
     if(SIM.brake&&SIM.speed<0.02)SIM.speed=0;
     SIM.egoFx+=(SIM.egoTargetFx-SIM.egoFx)*0.045;
@@ -568,7 +692,7 @@ function createSim(CFG){
       else if(o.dirn===-1)vy=ROADV*(SIM.speed+o.own);
       else vy=ROADV*SIM.speed;
       o.y+=vy;
-      if(T.weave&&o.dirn===1){o.wt=(o.wt||0)+0.04;o.fx+=Math.sin(o.wt)*0.0009;}
+      if(T.weave&&o.dirn===1){o.wt=(o.wt||0)+0.04;o.baseFx=o.baseFx??o.fx;o.fx=o.baseFx+Math.sin(o.wt)*LANE_HALF*0.5;}
       if(o.walker&&o.vxf){
         o.fx+=o.vxf;
         if((o.vxf>0&&o.fx>CFG.walkerExit[1])||(o.vxf<0&&o.fx<CFG.walkerExit[0])){o.cleared=true;o.alpha=1;}
@@ -818,6 +942,7 @@ function createSim(CFG){
     const set=(cls,txt)=>{verdictEl.className='verdict '+cls;verdictEl.textContent=txt;};
     if(SIM.collisionT>0)return set('danger','💥 COLLISION · SENSOR GAP');
     if(SIM.holding)return set('warn','👁 SHOULDER CHECK · HOLDING LANE');
+    if(SIM.aeb)return set('warn','🛑 AEB SUPERVISOR · HARD BRAKE');
     switch(SIM.mode){
       case 'overtake':return set('ok','↷ INDICATING · OVERTAKING');
       case 'creep':return set('warn','⤳ CREEPING PAST HAZARD');
@@ -828,7 +953,7 @@ function createSim(CFG){
         return set('warn','🛑 AEB ENGAGED · BRAKING');
     }
     const lead=leadObject();
-    if(!lead)return set('ok',SIM.speed<0.9?'RESUMING · ROAD CLEAR':'CRUISING · LANE '+(SIM.egoLane+1));
+    if(!lead)return set('ok',SIM.speed<0.9&&SIM.cruiseCap===1?'RESUMING · ROAD CLEAR':(SIM.cruiseCap<1?'CRUISING · WEATHER CAUTION':'CRUISING · LANE '+(SIM.egoLane+1)));
     const f=fusedScore(lead);
     const d=EGO().y-lead.y;
     if(f.score>0.5)return set('ok','DETECTED · TRACKING · '+(f.by?SENSOR_META[f.by].label.toUpperCase():''));
