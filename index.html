@@ -305,7 +305,8 @@ const SIM={
   scrollPos:0,
   collisionT:0,
   egoFx:0.375,egoTargetFx:0.375,   // ego lane position (fraction of W)
-  speedTarget:1,maneuver:null,phase:null
+  speedTarget:1,maneuver:null,phase:null,
+  holding:false,passFx:0.625
 };
 const LANE_L=0.375,LANE_R=0.625;  // left-hand traffic: cruise left, overtake right
 
@@ -472,7 +473,7 @@ function planAndAct(){
   const dist=hz?ego.y-hz.y:1e9;
   const inPath=hz?Math.abs(hz.x-ego.x)<W*0.13:false;
   if(!SIM.maneuver){
-    SIM.brake=false;SIM.speedTarget=1;
+    SIM.brake=false;SIM.speedTarget=1;SIM.holding=false;
     if(hz&&fused.score>0.5&&inPath&&dist<H*0.5){
       const passFx=hz.x>W*0.5?LANE_L:LANE_R;
       if(hz.type==='truck'||hz.type==='rickshaw'){
@@ -489,12 +490,18 @@ function planAndAct(){
     }
   }else{
     if(SIM.phase==='out'){
-      if(SIM.maneuver==='creep')SIM.speedTarget=0.3;
+      if(SIM.maneuver==='creep')SIM.speedTarget=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.02?0.6:0.3;
       const arrived=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.012;
-      const passed=!hz||hz.y>ego.y-10;
-      if(arrived&&passed){SIM.phase='return';SIM.egoTargetFx=LANE_L;SIM.speedTarget=1;}
-    }else if(SIM.phase==='return'&&Math.abs(SIM.egoFx-LANE_L)<0.012){
-      SIM.maneuver=null;SIM.phase=null;
+      const passed=!hz||hz.y>ego.y+40; /* fully behind, with margin */
+      if(arrived&&passed){SIM.passFx=SIM.egoTargetFx;SIM.phase='return';SIM.speedTarget=1;}
+    }else if(SIM.phase==='return'){
+      /* SHOULDER CHECK: is anything still occupying the home lane beside/behind us? */
+      const blocker=SIM.hazards.find(h=>!h.cleared&&Math.abs(h.x-W*LANE_L)<W*0.13&&h.y>ego.y-70&&h.y<ego.y+40);
+      if(blocker){SIM.holding=true;SIM.egoTargetFx=SIM.passFx;}
+      else{
+        SIM.holding=false;SIM.egoTargetFx=LANE_L;
+        if(Math.abs(SIM.egoFx-LANE_L)<0.012){SIM.maneuver=null;SIM.phase=null;}
+      }
     }
   }
   /* ACT: actuators ease toward targets — brakes bite harder than throttle */
@@ -581,6 +588,7 @@ function updateVerdict(){
   const ego=EGO();
   const hz=SIM.hazards.find(h=>!h.cleared);
   if(SIM.collisionT>0){v.className='verdict danger';v.textContent='💥 COLLISION · SENSOR GAP';return;}
+  if(SIM.holding){v.className='verdict warn';v.textContent='👁 SHOULDER CHECK · HOLDING LANE';return;}
   if(SIM.maneuver==='overtake'){v.className='verdict ok';v.textContent=SIM.phase==='out'?'↷ INDICATING · OVERTAKING':'↩ RETURNING TO LANE';return;}
   if(SIM.maneuver==='swerve'){v.className='verdict ok';v.textContent=SIM.phase==='out'?'⤳ SWERVING · POTHOLE':'↩ RETURNING TO LANE';return;}
   if(SIM.maneuver==='creep'){v.className='verdict warn';v.textContent=SIM.phase==='out'?'⤳ CREEPING PAST HAZARD':'↩ REJOINING LANE';return;}
