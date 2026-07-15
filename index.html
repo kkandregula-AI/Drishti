@@ -128,28 +128,6 @@ section{padding:72px 0;border-top:1px solid rgba(255,255,255,.05)}
 .rc-label.needs{color:var(--green)}
 .rc-block p{font-size:.83rem;color:var(--muted);line-height:1.55}
 
-/* ── Tutor ── */
-.tutor-shell{background:var(--ink-2);border:1px solid var(--line-cyan);border-radius:var(--radius);overflow:hidden;margin-top:34px}
-.tutor-head{padding:18px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.tutor-head .t-title{font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan-soft)}
-.key-btn{font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.12em;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--muted);cursor:pointer}
-.key-row{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:none;gap:10px}
-.key-row.show{display:flex}
-.key-row input{flex:1;background:var(--ink-3);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none}
-.key-row input:focus{border-color:var(--cyan)}
-.chat-log{max-height:380px;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
-.msg{max-width:88%;padding:12px 16px;border-radius:14px;font-size:.9rem;line-height:1.55;white-space:pre-wrap;word-wrap:break-word}
-.msg.user{align-self:flex-end;background:rgba(217,70,239,.14);border:1px solid rgba(217,70,239,.25)}
-.msg.ai{align-self:flex-start;background:var(--ink-3);border:1px solid rgba(255,255,255,.07);color:#d5d3e6}
-.msg.sys{align-self:center;font-family:'DM Mono',monospace;font-size:.68rem;color:var(--faint);background:none;border:none;text-align:center}
-.suggest-row{display:flex;gap:8px;padding:0 22px 14px;flex-wrap:wrap}
-.suggest{font-size:.72rem;font-family:'DM Mono',monospace;padding:7px 13px;border-radius:999px;border:1px solid rgba(34,211,238,.25);background:transparent;color:var(--cyan-soft);cursor:pointer;letter-spacing:.04em}
-.chat-input-row{display:flex;gap:10px;padding:14px 22px;border-top:1px solid rgba(255,255,255,.06)}
-.chat-input-row input{flex:1;background:var(--ink-3);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:12px 18px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none}
-.chat-input-row input:focus{border-color:var(--fuchsia)}
-.send-btn{width:46px;height:46px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--fuchsia),#a21caf);color:#fff;font-size:1.05rem;cursor:pointer;flex-shrink:0}
-.send-btn:disabled{opacity:.4}
-
 /* ── Footer ── */
 footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.05);text-align:center}
 .attribution{font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.14em;color:var(--faint)}
@@ -169,7 +147,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
     <p class="hero-sub">How does a car <b>learn to see</b>? Toggle real sensor physics, break Western assumptions on an Indian highway, and walk the full autonomy stack — <b>Sense → Perceive → Plan → Act</b>.</p>
     <div class="hero-cta">
       <a href="#stage" class="btn btn-primary" data-scroll="stage">Enter the Lab</a>
-      <a href="#tutor" class="btn btn-ghost" data-scroll="tutor">Ask the AI Tutor</a>
+      <a href="#reality" class="btn btn-ghost" data-scroll="reality">India Reality Check</a>
     </div>
   </div>
 </div>
@@ -178,7 +156,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
   <div class="wrap">
     <div class="eyebrow reveal">01 · The Sensing Stage</div>
     <h2 class="reveal">Four eyes, four blind spots</h2>
-    <p class="lede reveal">Every ADAS sensor sees the world differently — and fails differently. Toggle them, spawn hazards, change the weather. Watch the fusion verdict decide what the car knows — and whether AEB fires in time.</p>
+    <p class="lede reveal">Every ADAS sensor sees the world differently — and fails differently. Toggle them, spawn hazards, change the weather. Watch the car decide: brake for the unpredictable, creep past the stationary, overtake the slow.</p>
     <div class="stage-shell reveal">
       <div class="stage-canvas-wrap">
         <canvas id="simCanvas"></canvas>
@@ -263,37 +241,6 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
   </div>
 </section>
 
-<section id="tutor">
-  <div class="wrap">
-    <div class="eyebrow reveal">05 · AI Tutor</div>
-    <h2 class="reveal">Ask DRISHTI anything</h2>
-    <p class="lede reveal">A Claude Haiku tutor that knows your current lab state — which sensors you've enabled, the weather, the hazard on the road. Bring your own Anthropic API key; it never leaves this device.</p>
-    <div class="tutor-shell reveal">
-      <div class="tutor-head">
-        <span class="t-title">◈ DRISHTI Tutor · Claude Haiku · BYOK</span>
-        <button class="key-btn" id="keyToggle">API Key</button>
-      </div>
-      <div class="key-row" id="keyRow">
-        <input type="password" id="keyInput" placeholder="sk-ant-..." autocomplete="off">
-        <button class="key-btn" id="keySave">Save</button>
-      </div>
-      <div class="chat-log" id="chatLog">
-        <div class="msg sys">Key stored only in this browser's localStorage · direct calls to api.anthropic.com</div>
-        <div class="msg ai">Namaste! I'm the DRISHTI tutor. I can see your Sensing Stage state in real time. Try disabling the camera in monsoon and ask me why the cow disappeared.</div>
-      </div>
-      <div class="suggest-row">
-        <button class="suggest">Why does radar miss cows?</button>
-        <button class="suggest">Camera vs LiDAR — who wins?</button>
-        <button class="suggest">What SAE level are Indian cars today?</button>
-      </div>
-      <div class="chat-input-row">
-        <input type="text" id="chatInput" placeholder="Ask about sensors, fusion, SAE levels…" enterkeyhint="send">
-        <button class="send-btn" id="sendBtn">➤</button>
-      </div>
-    </div>
-  </div>
-</section>
-
 <footer>
   <div class="wrap">
     <div class="attribution">Designed & Architected by <b>Krishnamurthy Kandregula</b> · Made by Claude</div>
@@ -356,8 +303,11 @@ const SIM={
   speed:1,        // ego world speed (1 = cruising, 0 = stopped)
   brake:false,    // PLAN stage decision
   scrollPos:0,
-  collisionT:0
+  collisionT:0,
+  egoFx:0.375,egoTargetFx:0.375,   // ego lane position (fraction of W)
+  speedTarget:1,maneuver:null,phase:null
 };
+const LANE_L=0.375,LANE_R=0.625;  // left-hand traffic: cruise left, overtake right
 
 const SENSOR_META={
   camera:{color:'#22d3ee',label:'Camera',fovDeg:70,range:.52,
@@ -396,15 +346,16 @@ function resizeCanvas(){
 window.addEventListener('resize',resizeCanvas);
 resizeCanvas();
 
-const EGO=()=>({x:W/2,y:H*0.86});
+const EGO=()=>({x:W*SIM.egoFx,y:H*0.86});
 
 function spawnHazard(type){
   const m=HAZARD_META[type];
   const roadL=W*0.28,roadR=W*0.72;
   let x;
-  if(m.lane==='center')x=W/2+(Math.random()*40-20);
+  const egoLaneX=W*LANE_L;
+  if(m.lane==='center')x=egoLaneX+(Math.random()*30-15);
   else if(m.lane==='edgeIn')x=Math.random()<.5?roadL-10:roadR+10;
-  else x=roadL+Math.random()*(roadR-roadL);
+  else x=Math.random()<0.7?egoLaneX+(Math.random()*W*0.1-W*0.05):roadL+Math.random()*(roadR-roadL);
   SIM.hazards=[{type,x,y:-30,vy:m.speed===0?0.9:m.speed+0.85,vx:m.lane==='edgeIn'?(x<W/2?0.25:-0.25):(m.lane==='weave'?0.3:0),weaveT:Math.random()*6}];
 }
 
@@ -492,52 +443,82 @@ function drawCones(){
 
 function drawEgo(){
   const ego=EGO();
+  const lean=Math.max(-0.25,Math.min(0.25,(SIM.egoTargetFx-SIM.egoFx)*1.4));
   ctx.save();
+  ctx.translate(ego.x,ego.y);ctx.rotate(lean);
   ctx.shadowColor='#22d3ee';ctx.shadowBlur=14;
   ctx.fillStyle='#e8e6f2';
   const w=22,h=38;
   ctx.beginPath();
-  ctx.roundRect?ctx.roundRect(ego.x-w/2,ego.y-h/2,w,h,7):ctx.rect(ego.x-w/2,ego.y-h/2,w,h);
+  ctx.roundRect?ctx.roundRect(-w/2,-h/2,w,h,7):ctx.rect(-w/2,-h/2,w,h);
   ctx.fill();
   ctx.shadowBlur=0;
-  ctx.fillStyle='#08080f';ctx.fillRect(ego.x-w/2+4,ego.y-h/2+7,w-8,9);
+  ctx.fillStyle='#08080f';ctx.fillRect(-w/2+4,-h/2+7,w-8,9);
+  if(SIM.maneuver&&Math.floor(SIM.t/14)%2===0){
+    const side=SIM.egoTargetFx>=SIM.egoFx?1:-1;
+    ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(side*(w/2),-h/2+5,3.5,0,Math.PI*2);ctx.fill();
+  }
   ctx.restore();
 }
-
-function stepHazards(){
+/* ── PLAN + ACT: the decision machine ──
+   moving vehicle (truck/rickshaw) -> indicate + overtake at speed
+   pothole                         -> in-lane swerve
+   cow / pedestrian                -> AEB stop, assess, then creep past slowly
+   (never swerve at speed for unpredictable actors) */
+function planAndAct(){
   const ego=EGO();
-  const hz=SIM.hazards[0];
-  /* ── PLAN: should we brake? (needs detection + proximity) ── */
-  let brake=false;
-  if(hz&&!hz.cleared){
-    const fused=fusedScore(hz);
-    const dist=ego.y-hz.y;
-    const inPath=Math.abs(hz.x-ego.x)<W*0.14;
-    if(fused.score>0.5&&inPath&&dist<H*0.5)brake=true;
+  const hz=SIM.hazards.find(h=>!h.cleared);
+  const fused=hz?fusedScore(hz):{score:0};
+  const dist=hz?ego.y-hz.y:1e9;
+  const inPath=hz?Math.abs(hz.x-ego.x)<W*0.13:false;
+  if(!SIM.maneuver){
+    SIM.brake=false;SIM.speedTarget=1;
+    if(hz&&fused.score>0.5&&inPath&&dist<H*0.5){
+      const passFx=hz.x>W*0.5?LANE_L:LANE_R;
+      if(hz.type==='truck'||hz.type==='rickshaw'){
+        SIM.maneuver='overtake';SIM.phase='out';SIM.egoTargetFx=passFx;
+      }else if(hz.type==='pothole'){
+        SIM.maneuver='swerve';SIM.phase='out';
+        SIM.egoTargetFx=SIM.egoFx+(passFx>SIM.egoFx?0.12:-0.12);
+      }else{
+        SIM.brake=true;SIM.speedTarget=0;
+        if(SIM.speed<0.05){hz.stopT=(hz.stopT||0)+1;
+          if(hz.stopT>110){SIM.maneuver='creep';SIM.phase='out';SIM.egoTargetFx=passFx;SIM.brake=false;}
+        }
+      }
+    }
+  }else{
+    if(SIM.phase==='out'){
+      if(SIM.maneuver==='creep')SIM.speedTarget=0.3;
+      const arrived=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.012;
+      const passed=!hz||hz.y>ego.y-10;
+      if(arrived&&passed){SIM.phase='return';SIM.egoTargetFx=LANE_L;SIM.speedTarget=1;}
+    }else if(SIM.phase==='return'&&Math.abs(SIM.egoFx-LANE_L)<0.012){
+      SIM.maneuver=null;SIM.phase=null;
+    }
   }
-  SIM.brake=brake;
-  /* ── ACT: ease world speed toward target (brake decel > accel) ── */
-  const target=brake?0:1;
-  SIM.speed+=(target-SIM.speed)*(brake?0.07:0.02);
-  if(brake&&SIM.speed<0.02)SIM.speed=0;
+  /* ACT: actuators ease toward targets — brakes bite harder than throttle */
+  SIM.speed+=(SIM.speedTarget-SIM.speed)*(SIM.speedTarget<SIM.speed?0.07:0.02);
+  if(SIM.brake&&SIM.speed<0.02)SIM.speed=0;
+  SIM.egoFx+=(SIM.egoTargetFx-SIM.egoFx)*0.045;
+}
+function stepHazards(){
+  planAndAct();
+  const ego=EGO();
   for(const h of SIM.hazards){
     if(h.cleared){h.alpha=(h.alpha??1)-0.03;continue;}
     const sp=Math.max(SIM.speed,0);
-    h.y+=h.vy*sp+(HAZARD_META[h.type].speed*0.4*(1-sp)*(h.type==='pothole'?0:1));
+    h.y+=h.vy*sp;
     if(HAZARD_META[h.type].lane==='weave'){h.weaveT+=0.04*Math.max(sp,.2);h.x+=Math.sin(h.weaveT)*1.4*sp;}
-    else h.x+=h.vx*sp;
+    else h.x+=h.vx*(h.type==='pedestrian'?1:sp); /* pedestrians keep walking even when ego stops */
     const dist=ego.y-h.y;
-    /* stopped safely in front -> hazard wanders off after a beat */
-    if(SIM.brake&&SIM.speed<0.05&&dist<H*0.32){h.stopT=(h.stopT||0)+1;if(h.stopT>150){h.cleared=true;h.alpha=1;}}
-    /* collision only if the stack never confirmed it */
-    if(!h.cleared&&dist<HAZARD_META[h.type].size*0.8&&Math.abs(h.x-ego.x)<26){
+    if(dist<HAZARD_META[h.type].size*0.8&&Math.abs(h.x-ego.x)<22){
       if(fusedScore(h).score<=0.5)SIM.collisionT=46;
       h.cleared=true;h.alpha=1;
     }
   }
   SIM.hazards=SIM.hazards.filter(h=>h.y<H+40&&(h.alpha??1)>0);
 }
-
 function drawHazards(){
   for(const hz of SIM.hazards){
     const m=HAZARD_META[hz.type];
@@ -574,7 +555,7 @@ function fusedScore(hz){
 
 function updateReadout(){
   const box=document.getElementById('readout');
-  const hz=SIM.hazards[0];
+  const hz=SIM.hazards.find(h=>!h.cleared);
   let html='';
   for(const key of Object.keys(SENSOR_META)){
     const s=SENSOR_META[key];
@@ -598,18 +579,20 @@ function updateReadout(){
 function updateVerdict(){
   const v=document.getElementById('verdict');
   const ego=EGO();
-  const hz=SIM.hazards[0];
+  const hz=SIM.hazards.find(h=>!h.cleared);
   if(SIM.collisionT>0){v.className='verdict danger';v.textContent='💥 COLLISION · SENSOR GAP';return;}
-  if(!hz||hz.cleared){v.className='verdict ok';v.textContent=SIM.speed<0.9?'RESUMING · ROAD CLEAR':'ROAD CLEAR';SIM.lastVerdict='clear';return;}
+  if(SIM.maneuver==='overtake'){v.className='verdict ok';v.textContent=SIM.phase==='out'?'↷ INDICATING · OVERTAKING':'↩ RETURNING TO LANE';return;}
+  if(SIM.maneuver==='swerve'){v.className='verdict ok';v.textContent=SIM.phase==='out'?'⤳ SWERVING · POTHOLE':'↩ RETURNING TO LANE';return;}
+  if(SIM.maneuver==='creep'){v.className='verdict warn';v.textContent=SIM.phase==='out'?'⤳ CREEPING PAST HAZARD':'↩ REJOINING LANE';return;}
+  if(!hz){v.className='verdict ok';v.textContent=SIM.speed<0.9?'RESUMING · ROAD CLEAR':'ROAD CLEAR';return;}
   const fused=fusedScore(hz);
   const dist=ego.y-hz.y;
-  if(SIM.brake&&SIM.speed<0.05){v.className='verdict warn';v.textContent='⛔ AEB · STOPPED — HAZARD AHEAD';}
+  if(SIM.brake&&SIM.speed<0.05){v.className='verdict warn';v.textContent='⛔ AEB · STOPPED — ASSESSING PATH';}
   else if(SIM.brake){v.className='verdict warn';v.textContent='🛑 AEB ENGAGED · BRAKING';}
   else if(fused.score>0.5){v.className='verdict ok';v.textContent='DETECTED · TRACKING · '+(fused.by?SENSOR_META[fused.by].label.toUpperCase():'');}
   else if(dist<H*0.35){v.className='verdict danger';v.textContent='⚠ UNDETECTED · COLLISION RISK';}
   else{v.className='verdict warn';v.textContent='OBJECT AHEAD · NOT YET CONFIRMED';}
 }
-
 let frameCount=0;
 function drawCollisionFlash(){
   if(SIM.collisionT<=0)return;
@@ -699,76 +682,6 @@ document.getElementById('realityGrid').innerHTML=REALITY.map(r=>`
     <div class="rc-block"><div class="rc-label needs">What\u2019s needed</div><p>${r.needs}</p></div>
   </div>`).join('');
 
-/* ═══════════ AI TUTOR — Claude Haiku BYOK ═══════════ */
-const KEY_STORE='drishti_api_key';
-const chatLog=document.getElementById('chatLog');
-const chatInput=document.getElementById('chatInput');
-const sendBtn=document.getElementById('sendBtn');
-const keyRow=document.getElementById('keyRow');
-const keyInput=document.getElementById('keyInput');
-let history=[];
-
-document.getElementById('keyToggle').addEventListener('click',()=>{
-  keyRow.classList.toggle('show');
-  keyInput.value=localStorage.getItem(KEY_STORE)||'';
-});
-document.getElementById('keySave').addEventListener('click',()=>{
-  const v=keyInput.value.trim();
-  if(v){localStorage.setItem(KEY_STORE,v);addMsg('sys','API key saved to this device.');}
-  else{localStorage.removeItem(KEY_STORE);addMsg('sys','API key cleared.');}
-  keyRow.classList.remove('show');
-});
-
-function addMsg(cls,text){
-  const d=document.createElement('div');d.className='msg '+cls;d.textContent=text;
-  chatLog.appendChild(d);chatLog.scrollTop=chatLog.scrollHeight;return d;
-}
-
-function labState(){
-  const on=Object.keys(SIM.sensors).filter(k=>SIM.sensors[k]).join(', ')||'none';
-  const hz=SIM.hazards[0];
-  return `Enabled sensors: ${on}. Condition: ${SIM.condition}. Hazard on road: ${hz?hz.type:'none'}. Ego state: ${SIM.brake?(SIM.speed<0.05?'AEB stopped':'AEB braking'):'cruising'}.`+(hz?` Fusion verdict: ${fusedScore(hz).score>0.5?'detected':'NOT detected'}.`:'');
-}
-
-async function askTutor(q){
-  const key=localStorage.getItem(KEY_STORE);
-  if(!key){keyRow.classList.add('show');addMsg('sys','Add your Anthropic API key first (stored only in this browser).');return;}
-  addMsg('user',q);
-  history.push({role:'user',content:q});
-  if(history.length>12)history=history.slice(-12);
-  const thinking=addMsg('ai','…');
-  sendBtn.disabled=true;
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key':key,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:700,
-        system:'You are the DRISHTI tutor, an expert and friendly ADAS/autonomous-driving educator inside a single-file PWA lab built by Krishnamurthy Kandregula Innovation Lab. Explain sensor physics, sensor fusion, SAE levels, and Indian road challenges clearly and concisely (under 180 words unless asked for depth). Use plain language, occasional analogies from Indian roads. Current live lab state: '+labState(),
-        messages:history
-      })
-    });
-    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||('HTTP '+res.status));}
-    const data=await res.json();
-    const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim()||'(empty response)';
-    thinking.textContent=text;
-    history.push({role:'assistant',content:text});
-  }catch(err){
-    thinking.className='msg sys';
-    thinking.textContent='Tutor error: '+err.message+(String(err.message).includes('401')?' — check your API key.':'');
-    history.pop();
-  }finally{sendBtn.disabled=false;}
-}
-
-sendBtn.addEventListener('click',()=>{const q=chatInput.value.trim();if(q){chatInput.value='';askTutor(q);}});
-chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendBtn.click();}});
-document.querySelectorAll('.suggest').forEach(b=>b.addEventListener('click',()=>askTutor(b.textContent)));
 </script>
 </body>
 </html>
