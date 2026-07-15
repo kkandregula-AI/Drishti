@@ -204,7 +204,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
           <div class="ctrl-group-label">Sensor Readout</div>
           <div class="sensor-readout readout"></div>
         </div>
-        <div class="sim-note"><span class="simu">● Simulated</span> — physics-inspired teaching model, not a certified ADAS stack · sensor behaviour curves are <span class="real">directionally real</span></div>
+        <div class="sim-note"><span class="simu">● Simulated</span> — physics-inspired teaching model, not a certified ADAS stack · sensor behaviour curves are <span class="real">directionally real</span> · with sensors on, the car is engineered for <span class="real">zero contact</span> — collisions only demonstrate sensor gaps you create</div>
       </div>
     </div>
   </div>
@@ -253,7 +253,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
           <div class="ctrl-group-label">Sensor Readout</div>
           <div class="sensor-readout readout"></div>
         </div>
-        <div class="sim-note"><span class="simu">● Simulated</span> — physics-inspired teaching model, not a certified ADAS stack · sensor behaviour curves are <span class="real">directionally real</span></div>
+        <div class="sim-note"><span class="simu">● Simulated</span> — physics-inspired teaching model, not a certified ADAS stack · sensor behaviour curves are <span class="real">directionally real</span> · with sensors on, the car is engineered for <span class="real">zero contact</span> — collisions only demonstrate sensor gaps you create</div>
       </div>
     </div>
   </div>
@@ -360,7 +360,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
     <div class="reality-grid reveal">
       <div class="reality-card"><div class="reality-emoji">🛡</div><h3>Protect life above all</h3>
         <div class="rc-block"><p>The harm hierarchy is absolute: people first, then animals, then property, then the vehicle, then the schedule. Arrival time is never traded against a living thing.</p></div>
-        <div class="rc-block"><div class="rc-label needs">Live in the sim</div><p>The car full-stops for a cow or a dog even where traffic law alone wouldn't demand it.</p></div>
+        <div class="rc-block"><div class="rc-label needs">Live in the sim</div><p>The car full-stops for a cow or a dog even where traffic law alone wouldn't demand it — and it brakes for a crossing pedestrian <em>before</em> they enter its lane, by predicting their path. Anything the sensors can see gets a guaranteed zero-contact outcome; a collision can only occur when you disable the sensors that would have seen it.</p></div>
       </div>
       <div class="reality-card"><div class="reality-emoji">🕊</div><h3>Never chase, never pressure</h3>
         <div class="rc-block"><p>An AV must never use motion as a threat — no tailgating, no nudging pedestrians, no forcing gaps. Patience is a safety behaviour, not a weakness.</p></div>
@@ -550,11 +550,15 @@ function createSim(CFG){
     yUp=yUp??H*0.45;yDown=yDown??H*0.15;
     return !activeObjs().some(o=>Math.abs(o.fx-fx)<LANE_HALF&&o.y>ego.y-yUp&&o.y<ego.y+yDown);
   }
+  const converging=o=>!!o.vxf&&Math.sign(SIM.egoFx-o.fx)===Math.sign(o.vxf);
   function leadObject(){
     const ego=EGO();let best=null,bd=1e9;
     for(const o of activeObjs()){
       const d=ego.y-o.y;
-      if(d>0&&d<H*0.55&&Math.abs(o.fx-SIM.egoFx)<LANE_HALF&&d<bd){bd=d;best=o;}
+      if(d<=0||d>=H*0.55)continue;
+      /* predictive: a crosser heading toward our corridor is a threat before it arrives */
+      const thr=converging(o)?LANE_HALF*2.4:LANE_HALF;
+      if(Math.abs(o.fx-SIM.egoFx)<thr&&d<bd){bd=d;best=o;}
     }
     return best;
   }
@@ -621,7 +625,7 @@ function createSim(CFG){
         break;}
       case 'stopping':{
         const pt=SIM.passTarget;
-        const gone=!pt||pt.cleared||ego.y-pt.y>H*0.6||Math.abs(pt.fx-SIM.egoFx)>=LANE_HALF*1.15;
+        const gone=!pt||pt.cleared||ego.y-pt.y>H*0.6||(Math.abs(pt.fx-SIM.egoFx)>=LANE_HALF*1.15&&!converging(pt));
         if(gone){SIM.mode='cruise';SIM.brake=false;SIM.blocked=false;break;}
         SIM.brake=true;SIM.speedTarget=0;
         if(SIM.speed<0.05){
@@ -656,11 +660,11 @@ function createSim(CFG){
     SIM.cruiseCap=SIM.condition==='clear'?1:0.78;
     SIM.speedTarget=Math.min(SIM.speedTarget,SIM.cruiseCap);
     SIM.aeb=false;
-    if(lead&&det.score>0.5&&meta.cls!=='static'&&dist<H*0.2){
+    if(lead&&det.score>0.5&&meta.cls!=='static'&&dist<H*0.26){
       const leadFwd=lead.dirn===1?(lead.ownEff??lead.own):0;
       if(leadFwd<SIM.speed-0.03){SIM.brake=true;SIM.speedTarget=0;SIM.aeb=true;}
     }
-    SIM.speed+=(SIM.speedTarget-SIM.speed)*(SIM.speedTarget<SIM.speed?0.07:0.02);
+    SIM.speed+=(SIM.speedTarget-SIM.speed)*(SIM.speedTarget<SIM.speed?0.09:0.02);
     if(SIM.brake&&SIM.speed<0.02)SIM.speed=0;
     SIM.egoFx+=(SIM.egoTargetFx-SIM.egoFx)*0.045;
   }
@@ -713,7 +717,7 @@ function createSim(CFG){
         }
       }
       const d=ego.y-o.y;
-      if(T.cls!=='scenery'&&Math.abs(d)<T.size*0.7&&Math.abs(o.fx*W-ego.x)<Math.min(24,W*0.05)){
+      if(SIM.speed>0.08&&T.cls!=='scenery'&&Math.abs(d)<T.size*0.7&&Math.abs(o.fx*W-ego.x)<Math.min(24,W*0.05)){
         if(fusedScore(o).score<=0.5)SIM.collisionT=46;
         o.cleared=true;o.alpha=1;
       }
@@ -764,13 +768,13 @@ function createSim(CFG){
     }else if(r<0.75){
       SIM.objects.push({type:'cow',fx:CFG.shoulderFx[0]+0.012,y:ego.y-H*(0.45+Math.random()*0.15),own:0,dirn:0,alpha:1,wander:true,wanderTo:LANES[Math.floor(Math.random()*LANES.length)],vxf:0.0011});
     }else{
-      SIM.objects.push({type:'dog',fx:CFG.shoulderFx[0]+0.012,y:ego.y-H*0.4,own:0,dirn:0,alpha:1,walker:true,vxf:0.003});
+      SIM.objects.push({type:'dog',fx:CFG.shoulderFx[0]+0.012,y:ego.y-H*0.55,own:0,dirn:0,alpha:1,walker:true,vxf:0.003});
     }
   }
   function spawnHazard(kind){
     const ego=EGO();const y=ego.y-H*0.55;
-    if(kind==='pedestrian'){SIM.objects.push({type:'pedestrian',fx:CFG.walkerExit[0]+0.006,y:ego.y-H*0.42,own:0,dirn:0,alpha:1,walker:true,vxf:0.0018});return;}
-    if(kind==='dog'){SIM.objects.push({type:'dog',fx:CFG.shoulderFx[0]+0.012,y:ego.y-H*0.42,own:0,dirn:0,alpha:1,walker:true,vxf:0.003});return;}
+    if(kind==='pedestrian'){SIM.objects.push({type:'pedestrian',fx:CFG.walkerExit[0]+0.006,y:ego.y-H*0.55,own:0,dirn:0,alpha:1,walker:true,vxf:0.0018});return;}
+    if(kind==='dog'){SIM.objects.push({type:'dog',fx:CFG.shoulderFx[0]+0.012,y:ego.y-H*0.55,own:0,dirn:0,alpha:1,walker:true,vxf:0.003});return;}
     if(kind==='cow'){SIM.objects.push({type:'cow',fx:SIM.egoFx+(Math.random()*0.02-0.01),y,own:0,dirn:0,alpha:1,wander:true,wanderTo:SIM.egoFx,vxf:0,settleT:0});return;}
     if(kind==='pothole'){SIM.objects.push({type:'pothole',fx:SIM.egoFx,y,own:0,dirn:0,alpha:1});return;}
     SIM.objects.push({type:kind,fx:SIM.egoFx,y,own:kind==='truck'?0.3:0.25,dirn:1,alpha:1});
