@@ -677,7 +677,30 @@ function createSim(CFG){
     }
     SIM.speed+=(SIM.speedTarget-SIM.speed)*(SIM.speedTarget<SIM.speed?0.09:0.02);
     if(SIM.brake&&SIM.speed<0.02)SIM.speed=0;
-    SIM.egoFx+=(SIM.egoTargetFx-SIM.egoFx)*0.045;
+    /* ── CONTACT PREVENTION: physical constraints, independent of any mode ──
+       (a) minimum bubble: the ego can NEVER close inside a hard gap on any
+           DETECTED object in its swept corridor — a constraint, not a decision.
+           Undetected objects stay invisible: the sensor-gap lesson survives.
+       (b) side guard: lateral motion pauses rather than move into a body beside us */
+    const bubble=H*0.085;
+    for(const o of activeObjs()){
+      const dB=ego.y-o.y;
+      if(dB<=0||dB>=bubble)continue;
+      const loB=Math.min(SIM.egoFx,SIM.egoTargetFx)-LANE_HALF,hiB=Math.max(SIM.egoFx,SIM.egoTargetFx)+LANE_HALF;
+      if(o.fx<=loB||o.fx>=hiB)continue;
+      if(fusedScore(o).score<=0.5)continue;
+      const oFwd=o.dirn===1?(o.ownEff??o.own):0;
+      if(SIM.speed>oFwd){SIM.speed=Math.max(0,oFwd);SIM.brake=true;}
+    }
+    const stepFx=(SIM.egoTargetFx-SIM.egoFx)*0.045;
+    if(stepFx){
+      const nx=SIM.egoFx+stepFx;
+      const half=(Math.min(24,W*0.05)+6)/W;
+      const blockedSide=activeObjs().some(o=>
+        Math.abs(ego.y-o.y)<TYPES[o.type].size*0.95&&
+        (stepFx>0?(o.fx>SIM.egoFx-half&&o.fx<nx+half):(o.fx<SIM.egoFx+half&&o.fx>nx-half)));
+      if(!blockedSide)SIM.egoFx=nx;
+    }
   }
 
   function stepWorld(){
@@ -699,7 +722,8 @@ function createSim(CFG){
           if(d>0&&d<H*0.22)aheadOwn=Math.min(aheadOwn??1,pc==='vehicle'?(p.ownEff??p.own):0);
         }
         const dEgo=o.y-ego.y;
-        if(Math.abs(o.fx-SIM.egoFx)<LANE_HALF&&dEgo>0&&dEgo<H*0.22)aheadOwn=Math.min(aheadOwn??1,SIM.speed);
+        const egoInMyLane=Math.abs(o.fx-SIM.egoFx)<LANE_HALF||Math.abs(o.fx-SIM.egoTargetFx)<LANE_HALF;
+        if(egoInMyLane&&dEgo>0&&dEgo<H*0.22)aheadOwn=Math.min(aheadOwn??1,SIM.speed);
         o.ownEff=aheadOwn!=null?Math.min(o.own,aheadOwn):o.own;
       }else o.ownEff=o.own||0;
       let vy;
