@@ -143,6 +143,42 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
 .attribution b{color:var(--fuchsia-soft);font-weight:500}
 .foot-series{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:var(--faint);margin-top:10px}
 .install-hint{font-size:.78rem;color:var(--faint);margin-top:18px}
+/* ── PDF export ── */
+.export-wrap{margin-bottom:30px}
+button.btn{border:none}
+.export-wrap .hint{font-size:.72rem;color:var(--faint);margin-top:12px}
+.print-only{display:none}
+@media print{
+  body{background:#fff!important;color:#16162a}
+  .hero{min-height:auto;padding:24px 0}
+  .hero-bg,.hero-cta,.install-hint,.export-wrap,.stage-controls,.stage-canvas-wrap,.sae-selector,.sae-panel,.pipeline,.pipe-detail,.sim-note,.verdict{display:none!important}
+  .reveal{opacity:1!important;transform:none!important}
+  section{padding:22px 0;border-top:1px solid #e2e2ee}
+  h1.hero-title{background:none;-webkit-background-clip:initial;background-clip:initial;-webkit-text-fill-color:#a21caf;color:#a21caf;font-size:3rem}
+  h2,h3{color:#16162a}
+  .hero-sub,.hero-sub b,.lede,.rc-block p,.src-what{color:#3a3a55}
+  .hero-devanagari,.ep-tag,.foot-series{color:#8b89a3}
+  .eyebrow{color:#0e7490}.eyebrow.f{color:#a21caf}
+  .print-only{display:block!important}
+  .print-snapshot{margin:14px 0;page-break-inside:avoid}
+  .print-snapshot img{width:100%;border:1px solid #d8d8e8;border-radius:10px}
+  .ps-cap{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.2em;color:#6b6b8a;margin-bottom:6px;text-transform:uppercase}
+  .print-block .pcard{border:1px solid #e2e2ee;border-radius:10px;padding:14px 16px;margin:10px 0;page-break-inside:avoid;background:#fff}
+  .print-block .pcard h3{color:#a21caf;font-size:1rem;margin-bottom:6px}
+  .print-block .pcard p{color:#3a3a55;font-size:.85rem;margin:4px 0}
+  .print-block .pcard .tech{font-family:'DM Mono',monospace;font-size:.68rem;color:#0e7490;line-height:1.7;margin-top:6px}
+  .print-block .pcard .india{color:#92600a}
+  .reality-grid{display:block}
+  .reality-card{background:#fff;border:1px solid #e2e2ee;page-break-inside:avoid;margin-bottom:10px}
+  .reality-card h3{color:#16162a}
+  .rc-label.breaks{color:#b42318}.rc-label.needs{color:#067647}
+  .src-list{background:#fff;border-color:#e2e2ee}
+  .src-item{border-color:#eee}
+  .src-name{color:#16162a}.src-name a{color:#0e7490}
+  .src-note{color:#8b89a3}
+  footer{padding:20px 0}
+  .attribution{color:#3a3a55}.attribution b{color:#a21caf}
+}
 </style>
 </head>
 <body>
@@ -406,6 +442,10 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
 
 <footer>
   <div class="wrap">
+    <div class="export-wrap">
+      <button class="btn btn-primary" id="exportPdf">⬇ Export Episode as PDF</button>
+      <p class="hint">Captures a live snapshot of both simulators · choose "Save as PDF" in your device's print dialog</p>
+    </div>
     <div class="attribution">Designed & Architected by <b>Krishnamurthy Kandregula</b> · Made by Claude</div>
     <div class="foot-series">Krishnamurthy Kandregula Innovation Lab · AI Education Series</div>
     <p class="install-hint">Add to Home Screen for the full offline lab experience.</p>
@@ -1178,6 +1218,45 @@ document.getElementById('realityGrid').innerHTML=REALITY.map(r=>`
     <div class="rc-block"><div class="rc-label needs">What\u2019s needed</div><p>${r.needs}</p></div>
   </div>`).join('');
 
+
+/* ═══════════ PDF EXPORT — live snapshots + fully expanded content ═══════════ */
+(function(){
+  const btn=document.getElementById('exportPdf');
+  if(!btn)return;
+  let built=false;
+  function buildPrintExtras(){
+    if(built)return;built=true;
+    const pd=document.getElementById('pipeDetail');
+    const pipeFull=document.createElement('div');
+    pipeFull.className='print-only print-block';
+    pipeFull.innerHTML=PIPE.map((p,i)=>`<div class="pcard"><h3>${String(i+1).padStart(2,'0')} · ${p.name}</h3><p>${p.body}</p><div class="tech">${p.tech.replace(/\n/g,'<br>')}</div></div>`).join('');
+    pd.parentNode.insertBefore(pipeFull,pd.nextSibling);
+    const sp=document.getElementById('saePanel');
+    const saeFull=document.createElement('div');
+    saeFull.className='print-only print-block';
+    saeFull.innerHTML=SAE.map((s,i)=>`<div class="pcard"><h3>Level ${i} — ${s.name}</h3><p><em>${s.tag}</em></p><p>${s.desc}</p><p class="india"><b>India lens:</b> ${s.india}</p></div>`).join('');
+    sp.parentNode.insertBefore(saeFull,sp.nextSibling);
+  }
+  btn.addEventListener('click',()=>{
+    buildPrintExtras();
+    const names=['THE DEMO ROAD','THE SIX-LANE GAUNTLET'];
+    document.querySelectorAll('.stage-shell').forEach((shell,i)=>{
+      let snap=shell.parentNode.querySelector('.print-snapshot');
+      if(!snap){
+        snap=document.createElement('div');
+        snap.className='print-snapshot print-only';
+        snap.innerHTML='<div class="ps-cap"></div><img alt="Simulation snapshot">';
+        shell.parentNode.insertBefore(snap,shell.nextSibling);
+      }
+      const cv=shell.querySelector('.simCanvas');
+      try{snap.querySelector('img').src=cv.toDataURL('image/png');}catch(e){}
+      snap.querySelector('.ps-cap').textContent='LIVE SNAPSHOT · '+(names[i]||'SIMULATOR')+' · '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    });
+    const t=document.title;
+    document.title='DRISHTI · Episode 10 · ADAS — Krishnamurthy Kandregula Innovation Lab';
+    setTimeout(()=>{window.print();document.title=t;},80);
+  });
+})();
 </script>
 </body>
 </html>
