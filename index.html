@@ -214,7 +214,7 @@ footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));border-top:1px so
   <div class="wrap" id="sim-highway">
     <div class="eyebrow f reveal">02 · The Six-Lane Gauntlet</div>
     <h2 class="reveal">Now try it in real traffic</h2>
-    <p class="lede reveal">A live six-lane Indian highway: three lanes each way, flowing traffic, oncoming stream across the median, life on the shoulders. Every vehicle — not just yours — brakes for animals and pedestrians. Watch the whole system negotiate.</p>
+    <p class="lede reveal">A live six-lane Indian highway: three lanes each way, flowing traffic, oncoming stream across the median, life on the shoulders. Every vehicle — not just yours — brakes for animals and pedestrians, and changes lanes with indicators when stuck. Watch the whole system negotiate.</p>
     <div class="stage-shell reveal">
       <div class="stage-canvas-wrap">
         <canvas class="simCanvas"></canvas>
@@ -682,9 +682,9 @@ function createSim(CFG){
            DETECTED object in its swept corridor — a constraint, not a decision.
            Undetected objects stay invisible: the sensor-gap lesson survives.
        (b) side guard: lateral motion pauses rather than move into a body beside us */
-    const bubble=H*0.085;
     for(const o of activeObjs()){
       const dB=ego.y-o.y;
+      const bubble=Math.max(H*0.085,TYPES[o.type].size*0.8+36); /* never smaller than sprites */
       if(dB<=0||dB>=bubble)continue;
       const loB=Math.min(SIM.egoFx,SIM.egoTargetFx)-LANE_HALF,hiB=Math.max(SIM.egoFx,SIM.egoTargetFx)+LANE_HALF;
       if(o.fx<=loB||o.fx>=hiB)continue;
@@ -725,6 +725,25 @@ function createSim(CFG){
         const egoInMyLane=Math.abs(o.fx-SIM.egoFx)<LANE_HALF||Math.abs(o.fx-SIM.egoTargetFx)<LANE_HALF;
         if(egoInMyLane&&dEgo>0&&dEgo<H*0.22)aheadOwn=Math.min(aheadOwn??1,SIM.speed);
         o.ownEff=aheadOwn!=null?Math.min(o.own,aheadOwn):o.own;
+        /* ambient lane changes: stuck behind something slower? move over —
+           if the target lane is free AND it doesn't invade the ego's envelope */
+        if(!T.weave){
+          o.lcT=Math.max(0,(o.lcT||0)-1);
+          if(o.lcTarget!=null){
+            o.fx+=(o.lcTarget-o.fx)*0.04;
+            if(Math.abs(o.fx-o.lcTarget)<0.008){o.fx=o.lcTarget;o.lcTarget=null;o.lcT=420+Math.random()*420;}
+          }else if(o.lcT===0&&aheadOwn!=null&&aheadOwn<o.own-0.12){
+            let li=0,bd=1;LANES.forEach((f,i)=>{const dd=Math.abs(o.fx-f);if(dd<bd){bd=dd;li=i;}});
+            for(const ci of [li+1,li-1]){
+              if(ci<0||ci>=LANES.length)continue;
+              const fx2=LANES[ci];
+              const occupied=SIM.objects.some(p=>p!==o&&!p.cleared&&!p.scenery&&TYPES[p.type].cls!=='scenery'&&p.dirn!==-1&&Math.abs(p.fx-fx2)<LANE_HALF&&Math.abs(p.y-o.y)<H*0.26);
+              const egoConflict=(Math.abs(fx2-SIM.egoFx)<LANE_HALF*1.1||Math.abs(fx2-SIM.egoTargetFx)<LANE_HALF*1.1)&&o.y>ego.y-H*0.32&&o.y<ego.y+H*0.25;
+              if(!occupied&&!egoConflict){o.lcTarget=fx2;o.lcT=999;break;}
+            }
+            if(o.lcTarget==null)o.lcT=200;
+          }
+        }
       }else o.ownEff=o.own||0;
       let vy;
       if(o.dirn===1)vy=ROADV*(SIM.speed-o.ownEff);
@@ -899,6 +918,10 @@ function createSim(CFG){
       ctx.font=T.size+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(T.emoji,0,0);
       ctx.restore();
+      if(o.lcTarget!=null&&!o.cleared&&Math.floor(SIM.t/14)%2===0){
+        ctx.fillStyle='#fbbf24';ctx.beginPath();
+        ctx.arc(x+(o.lcTarget>o.fx?11:-11),o.y-11,3,0,Math.PI*2);ctx.fill();
+      }
       if(SIM.condition==='night'&&o.dirn===-1&&!o.cleared){
         const g=ctx.createRadialGradient(x,o.y+T.size,2,x,o.y+T.size,40);
         g.addColorStop(0,'rgba(255,240,190,.30)');g.addColorStop(1,'rgba(255,240,190,0)');
