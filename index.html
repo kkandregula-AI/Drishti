@@ -565,10 +565,31 @@ function createSim(CFG){
     }
     return best;
   }
-  function pickFreeLane(){
-    if(SIM.egoLane<LANES.length-1&&laneFree(SIM.egoLane+1,H*0.45,H*0.3))return SIM.egoLane+1;
-    if(SIM.egoLane>0&&laneFree(SIM.egoLane-1,H*0.45,H*0.3))return SIM.egoLane-1;
-    return -1;
+  function laneAheadSpeed(idx){
+    /* how fast is this lane actually moving? = speed of its nearest vehicle ahead */
+    const fx=LANES[idx];const ego=EGO();let sp=1,bd=1e9;
+    for(const o of activeObjs()){
+      const d=ego.y-o.y;
+      if(d>0&&d<H*0.5&&Math.abs(o.fx-fx)<LANE_HALF&&d<bd){bd=d;sp=o.dirn===1?(o.ownEff??o.own):0;}
+    }
+    return sp;
+  }
+  function laneOpen(idx){
+    /* physically enterable: nobody beside / immediately fore-aft, no fast closer from behind */
+    const fx=LANES[idx];const ego=EGO();
+    if(activeObjs().some(o=>Math.abs(o.fx-fx)<LANE_HALF&&o.y>ego.y-H*0.14&&o.y<ego.y+H*0.16))return false;
+    if(activeObjs().some(o=>o.dirn===1&&(o.ownEff??o.own)>SIM.speed+0.15&&Math.abs(o.fx-fx)<LANE_HALF&&o.y>ego.y&&o.y<ego.y+H*0.35))return false;
+    return true;
+  }
+  function pickFreeLane(curSpeed){
+    /* like a human: only move if the lane is open AND meaningfully faster */
+    let best=-1,bestGain=(curSpeed??0)+0.12;
+    for(const ci of [SIM.egoLane+1,SIM.egoLane-1]){
+      if(ci<0||ci>=LANES.length||!laneOpen(ci))continue;
+      const g=laneAheadSpeed(ci);
+      if(g>bestGain){bestGain=g;best=ci;}
+    }
+    return best;
   }
 
   function planAndAct(){
@@ -596,8 +617,8 @@ function createSim(CFG){
             const dir=(SIM.egoLane<LANES.length-1&&laneFree(SIM.egoLane+1,H*0.3,H*0.1))?1:-1;
             SIM.egoTargetFx=LANES[SIM.egoLane]+dir*SWERVE;
           }else if((lead.ownEff??lead.own)<0.9){
-            const nl=SIM.decideT===0?pickFreeLane():-1;
-            if(nl>=0){SIM.mode='overtake';SIM.passTarget=lead;SIM.targetLane=nl;SIM.egoTargetFx=LANES[nl];SIM.decideT=45;}
+            const nl=SIM.decideT===0?pickFreeLane(lead.ownEff??lead.own):-1;
+            if(nl>=0){SIM.mode='overtake';SIM.otT=SIM.t;SIM.passTarget=lead;SIM.targetLane=nl;SIM.egoTargetFx=LANES[nl];SIM.decideT=45;}
             else{SIM.mode='follow';if(SIM.decideT===0)SIM.decideT=45;}
           }
         }else if(SIM.egoLane!==HOME&&SIM.decideT===0&&Math.abs(SIM.egoFx-LANES[SIM.egoLane])<0.02){
@@ -613,8 +634,8 @@ function createSim(CFG){
         const tgt=(lead.ownEff??lead.own)+(dist-gap)/(H*0.6);
         SIM.speedTarget=Math.max(0,Math.min(1,tgt));
         if(SIM.decideT===0){
-          const nl=pickFreeLane();
-          if(nl>=0){SIM.mode='overtake';SIM.passTarget=lead;SIM.targetLane=nl;SIM.egoTargetFx=LANES[nl];}
+          const nl=pickFreeLane(lead.ownEff??lead.own);
+          if(nl>=0){SIM.mode='overtake';SIM.otT=SIM.t;SIM.passTarget=lead;SIM.targetLane=nl;SIM.egoTargetFx=LANES[nl];}
           SIM.decideT=45;
         }
         break;}
@@ -624,8 +645,13 @@ function createSim(CFG){
         const arrived=Math.abs(SIM.egoFx-SIM.egoTargetFx)<0.012;
         if(arrived)SIM.egoLane=SIM.targetLane;
         /* mid-change safety: destination lane became occupied -> abort, return, follow */
+        if(SIM.t-(SIM.otT||0)>360){ /* stale overtake: give up cleanly, follow, retry later */
+          SIM.targetLane=SIM.egoLane;SIM.egoTargetFx=LANES[SIM.egoLane];
+          SIM.mode='follow';SIM.decideT=90;break;
+        }
         if(!arrived){
-          const destBusy=activeObjs().some(o=>o!==pt&&Math.abs(o.fx-LANES[SIM.targetLane])<LANE_HALF&&o.y>ego.y-H*0.4&&o.y<ego.y+H*0.2);
+          /* merging BEHIND a vehicle is normal driving — abort only if someone is beside us */
+          const destBusy=activeObjs().some(o=>o!==pt&&Math.abs(o.fx-LANES[SIM.targetLane])<LANE_HALF&&o.y>ego.y-H*0.14&&o.y<ego.y+H*0.16);
           if(destBusy){
             SIM.targetLane=SIM.egoLane;SIM.egoTargetFx=LANES[SIM.egoLane];
             SIM.mode='follow';SIM.decideT=70;break;
@@ -642,7 +668,7 @@ function createSim(CFG){
         if(SIM.speed<0.05){
           pt.stopT=(pt.stopT||0)+1;
           if(pt.stopT>110){
-            const nl=pickFreeLane();
+            const nl=(SIM.egoLane<LANES.length-1&&laneOpen(SIM.egoLane+1))?SIM.egoLane+1:((SIM.egoLane>0&&laneOpen(SIM.egoLane-1))?SIM.egoLane-1:-1);
             if(nl>=0){SIM.mode='creep';SIM.brake=false;SIM.blocked=false;SIM.targetLane=nl;SIM.egoTargetFx=LANES[nl];}
             else{SIM.blocked=true;pt.stopT=80;}
           }
@@ -731,8 +757,8 @@ function createSim(CFG){
           o.lcT=Math.max(0,(o.lcT||0)-1);
           if(o.lcTarget!=null){
             o.fx+=(o.lcTarget-o.fx)*0.04;
-            if(Math.abs(o.fx-o.lcTarget)<0.008){o.fx=o.lcTarget;o.lcTarget=null;o.lcT=420+Math.random()*420;}
-          }else if(o.lcT===0&&aheadOwn!=null&&aheadOwn<o.own-0.12){
+            if(Math.abs(o.fx-o.lcTarget)<0.008){o.fx=o.lcTarget;o.lcTarget=null;o.lcT=300+Math.random()*300;}
+          }else if(o.lcT===0&&aheadOwn!=null&&aheadOwn<o.own-0.08){
             let li=0,bd=1;LANES.forEach((f,i)=>{const dd=Math.abs(o.fx-f);if(dd<bd){bd=dd;li=i;}});
             for(const ci of [li+1,li-1]){
               if(ci<0||ci>=LANES.length)continue;
