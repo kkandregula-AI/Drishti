@@ -113,6 +113,11 @@ section{padding:72px 0;border-top:1px solid rgba(255,255,255,.05)}
 .duty-fill{height:100%;background:linear-gradient(90deg,var(--fuchsia),var(--cyan));transition:width .6s cubic-bezier(.22,1,.36,1)}
 .duty-legend{display:flex;gap:18px;margin-top:16px;font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 .duty-legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.sae-note{margin-top:20px;padding:14px 18px;border-left:2px solid var(--cyan);background:rgba(34,211,238,.05);border-radius:0 10px 10px 0;font-size:.88rem;color:var(--muted)}
+.sae-note b{color:var(--cyan-soft)}
+.sae-class{display:inline-block;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;padding:7px 15px;border-radius:999px;margin-bottom:14px}
+.sae-class.adas{color:var(--cyan-soft);border:1px solid rgba(34,211,238,.4);background:rgba(34,211,238,.08)}
+.sae-class.ads{color:var(--fuchsia-soft);border:1px solid rgba(217,70,239,.4);background:rgba(217,70,239,.08)}
 .sae-india{margin-top:18px;padding:14px 16px;border-left:2px solid var(--amber);background:rgba(251,191,36,.05);border-radius:0 10px 10px 0;font-size:.86rem;color:var(--muted)}
 .sae-india b{color:var(--amber)}
 
@@ -178,6 +183,8 @@ button.btn{border:none}
   .src-note{color:#8b89a3}
   footer{padding:20px 0}
   .attribution{color:#3a3a55}.attribution b{color:#a21caf}
+  .sae-note{background:#fff;border-left:2px solid #0e7490;color:#3a3a55}
+  .sae-note b{color:#0e7490}
 }
 </style>
 </head>
@@ -315,6 +322,7 @@ button.btn{border:none}
     <div class="eyebrow reveal">04 · SAE Levels</div>
     <h2 class="reveal">The ladder from 0 to 5</h2>
     <p class="lede reveal">"Self-driving" is not one thing — it's a six-rung ladder of who does what. Slide across the levels and watch responsibility shift from human to machine.</p>
+    <div class="sae-note reveal"><b>ADAS vs ADS:</b> ADAS assists a human driver (L0–2). From L3 up, it's an ADS — the machine is the driver. The ladder is one; the names change at the handover.</div>
     <div class="sae-selector reveal">
       <button class="sae-btn" data-level="0">0</button>
       <button class="sae-btn" data-level="1">1</button>
@@ -1225,7 +1233,10 @@ function showSAE(i){
   s.duties.forEach((d,k)=>{
     rows+=`<div class="duty-row"><div class="duty-label">${DUTY_LABELS[k]}</div><div class="duty-bar"><div class="duty-fill" style="width:0%" data-w="${d}"></div></div></div>`;
   });
-  saePanel.innerHTML=`<h3>Level ${i} — ${s.name}</h3><div class="sae-tagline">${s.tag}</div><p class="sae-desc">${s.desc}</p>${rows}
+  const klass=i<3
+    ?'<div class="sae-class adas">ADAS · The human drives, the machine assists</div>'
+    :'<div class="sae-class ads">ADS · The machine is the driver</div>';
+  saePanel.innerHTML=klass+`<h3>Level ${i} — ${s.name}</h3><div class="sae-tagline">${s.tag}</div><p class="sae-desc">${s.desc}</p>${rows}
   <div class="duty-legend"><span><span class="dot" style="background:linear-gradient(90deg,#d946ef,#22d3ee)"></span>System share</span><span><span class="dot" style="background:#15152a;border:1px solid #55536e"></span>Human share</span></div>
   <div class="sae-india"><b>India lens:</b> ${s.india}</div>`;
   requestAnimationFrame(()=>requestAnimationFrame(()=>{saePanel.querySelectorAll('.duty-fill').forEach(f=>f.style.width=f.dataset.w+'%')}));
@@ -1266,7 +1277,7 @@ document.getElementById('realityGrid').innerHTML=REALITY.map(r=>`
     const sp=document.getElementById('saePanel');
     const saeFull=document.createElement('div');
     saeFull.className='print-only print-block';
-    saeFull.innerHTML=SAE.map((s,i)=>`<div class="pcard"><h3>Level ${i} — ${s.name}</h3><p><em>${s.tag}</em></p><p>${s.desc}</p><p class="india"><b>India lens:</b> ${s.india}</p></div>`).join('');
+    saeFull.innerHTML=SAE.map((s,i)=>`<div class="pcard"><h3>Level ${i} — ${s.name}</h3><p class="tech">${i<3?'ADAS — the human drives, the machine assists':'ADS — the machine is the driver'}</p><p><em>${s.tag}</em></p><p>${s.desc}</p><p class="india"><b>India lens:</b> ${s.india}</p></div>`).join('');
     sp.parentNode.insertBefore(saeFull,sp.nextSibling);
   }
   btn.addEventListener('click',()=>{
